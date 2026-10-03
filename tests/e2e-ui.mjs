@@ -23,7 +23,8 @@ const contrastIn = (page, selA, selB, prop = "color", propB = "backgroundColor")
 
 for (const theme of ["dark", "light"]) {
   await popup.evaluate((t) => { document.documentElement.dataset.theme = t; }, theme);
-  await popup.waitForTimeout(350); // espera as transições de cor (0,2 s) terminarem antes de medir
+  // Espera as transições de cor terminarem de verdade (tempo fixo é frágil sob carga) antes de medir.
+  await popup.evaluate(() => Promise.all(document.getAnimations().map((a) => a.finished.catch(() => {}))));
   const pairs = [
     ["texto principal", "h1", "bg", 4.5],
     ["rótulo (eyebrow)", ".eyebrow", "bg", 4.5],
