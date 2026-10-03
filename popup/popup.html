@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <title>Scroll Recorder</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <header>
+    <h1>Scroll Recorder</h1>
+    <button id="theme" class="icon-btn" type="button" aria-label="Alternar tema claro/escuro" title="Alternar tema"></button>
+  </header>
+
+  <button id="play" class="primary" type="button">▶ Iniciar scroll</button>
+
+  <section>
+    <label for="speed">Velocidade <output id="speedOut">120</output> px/s</label>
+    <input id="speed" type="range" min="10" max="1000" step="10" value="120">
+    <div class="presets">
+      <button type="button" data-speed="60">Lento</button>
+      <button type="button" data-speed="150">Médio</button>
+      <button type="button" data-speed="400">Rápido</button>
+    </div>
+  </section>
+
+  <section>
+    <button id="direction" type="button">⬇ Descer</button>
+  </section>
+
+  <p id="status" role="status"></p>
+  <script src="popup.js"></script>
+</body>
+</html>
