@@ -15,6 +15,10 @@
 
   const maxScroll = (el) => el.scrollHeight - el.clientHeight;
 
+  // "instant" ignora o CSS scroll-behavior:smooth do site. Sem isso, cada atribuição
+  // vira uma animação atrasada e a velocidade real fica presa em ~300 px/s.
+  const scrollToY = (el, y) => el.scrollTo({ top: y, behavior: "instant" });
+
   function isScrollable(el) {
     if (maxScroll(el) <= 1) return false;
     const overflowY = getComputedStyle(el).overflowY;
@@ -52,12 +56,12 @@
     const atEnd = state.direction === 1 ? state.pos >= max : state.pos <= 0;
     if (atEnd) { // chegou ao fim: trava na borda e para
       state.pos = Math.min(Math.max(state.pos, 0), max);
-      el.scrollTop = state.pos;
+      scrollToY(el, state.pos);
       stop();
       return;
     }
 
-    el.scrollTop = state.pos;
+    scrollToY(el, state.pos);
     state.lastSet = el.scrollTop;
     state.raf = requestAnimationFrame(tick);
   }

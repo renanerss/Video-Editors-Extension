@@ -12,10 +12,10 @@ for (const d of ["popup", "content", "icons"]) fs.cpSync(path.join(src, d), path
 const manifest = JSON.parse(fs.readFileSync(path.join(src, "manifest.json")));
 manifest.host_permissions = ["<all_urls>"];
 fs.writeFileSync(path.join(ext, "manifest.json"), JSON.stringify(manifest));
-const page_html = `<body style="margin:0"><div style="height:20000px;background:linear-gradient(#fff,#000)"></div></body>`;
-const server = http.createServer((_, res) => { res.setHeader("content-type", "text/html"); res.end(page_html); })
+const page_html = (smooth) => `<html style="${smooth ? "scroll-behavior:smooth" : ""}"><body style="margin:0"><div style="height:60000px;background:linear-gradient(#fff,#000)"></div></body></html>`;
+const server = http.createServer((req, res) => { res.setHeader("content-type", "text/html"); res.end(page_html(req.url.includes("smooth"))); })
   .listen(0);
-const url = `http://localhost:${server.address().port}/`;
+const url = `http://localhost:${server.address().port}/` + (process.env.SMOOTH ? "?smooth" : "");
 
 const ctx = await chromium.launchPersistentContext(fs.mkdtempSync(path.join(os.tmpdir(), "pw-")), {
   channel: "chromium",
@@ -62,6 +62,12 @@ const setSlider = (v) => popup.$eval("#speed", (el, v) => { el.value = v; el.dis
 await setSlider(400);
 await popup.waitForTimeout(100);
 check("slider -> 400 px/s ao vivo", near(await rate(), 400));
+await setSlider(800);
+await popup.waitForTimeout(100);
+check("slider -> 800 px/s ao vivo", near(await rate(), 800));
+await setSlider(1000);
+await popup.waitForTimeout(100);
+check("slider -> 1000 px/s ao vivo", near(await rate(), 1000));
 await setSlider(50);
 await popup.waitForTimeout(100);
 check("slider -> 50 px/s ao vivo", near(await rate(), 50));
@@ -80,7 +86,7 @@ await popup.click("#play");
 
 // Fim da página: para sozinho e o botão volta a "Iniciar".
 await popup.click("#direction"); // descer
-await target.evaluate(() => scrollTo(0, document.scrollingElement.scrollHeight - innerHeight - 100));
+await target.evaluate(() => scrollTo({ top: document.scrollingElement.scrollHeight - innerHeight - 100, behavior: "instant" }));
 await setSlider(1000);
 await popup.click('.presets button[data-speed="400"]');
 await target.waitForTimeout(800);
