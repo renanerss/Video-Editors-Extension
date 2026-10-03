@@ -46,6 +46,8 @@ async function ensureScroller() {
   await chrome.scripting.executeScript({ target: { tabId }, files: ["content/scroller.js"] });
   injected = true;
 }
+// Velocidade e direção ficam salvas: o popup reabre como estava e o menu do ícone usa a última escolha.
+const saveScroll = () => chrome.storage.local.set({ scrollSettings: { speed: settings.speed, direction: settings.direction } });
 const send = (msg) => chrome.tabs.sendMessage(tabId, { target: "scroller", ...msg });
 
 function render() {
@@ -85,6 +87,7 @@ els.play.addEventListener("click", () => setRunning(!running));
 els.speed.addEventListener("input", () => {
   settings.speed = Number(els.speed.value);
   render();
+  saveScroll();
   if (running) applySettings();
 });
 
@@ -93,12 +96,14 @@ document.querySelectorAll(".presets button").forEach((b) =>
   b.addEventListener("click", () => {
     settings.speed = Number(b.dataset.speed);
     render();
+    saveScroll();
     setRunning(true);
   })
 );
 for (const radio of [els.dirDown, els.dirUp]) {
   radio.addEventListener("change", () => {
     settings.direction = Number(radio.value);
+    saveScroll();
     if (running) applySettings();
   });
 }
@@ -311,12 +316,15 @@ chrome.storage.onChanged.addListener((changes, area) => {
   await initTheme();
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   tabId = tab?.id ?? null;
+  const { scrollSettings } = await chrome.storage.local.get("scrollSettings");
+  if (scrollSettings) Object.assign(settings, scrollSettings);
   try {
     const res = await send({ type: "configure" }); // só funciona se o script já estiver injetado
-    Object.assign(settings, { speed: res.speed, direction: res.direction });
     injected = true;
     running = res.running;
-  } catch { /* script ainda não injetado: usa os padrões */ }
+    // Rodando agora, vale o que a página está fazendo; parado, vale o que ficou salvo.
+    if (res.running) Object.assign(settings, { speed: res.speed, direction: res.direction });
+  } catch { /* script ainda não injetado: usa o salvo ou os padrões */ }
   render();
   const stored = await chrome.storage.local.get(["recSettings", "optsOpen", "qualOpen"]);
   if (stored.qualOpen) { els.qual.open = true; els.opts.open = false; }

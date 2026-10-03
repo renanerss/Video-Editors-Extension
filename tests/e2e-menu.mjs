@@ -33,7 +33,7 @@ check("item desconhecido é ignorado", (await phase(popup)).phase === "idle");
 await click();
 const live = await waitPhase(popup, "recording");
 check("clique no menu inicia a gravação", live.phase === "recording");
-check("usa a velocidade padrão 120 px/s descendo", live.speed === 120 && live.direction === 1, `${live.speed}/${live.direction}`);
+check("sem nada salvo, usa 120 px/s descendo", live.speed === 120 && live.direction === 1, `${live.speed}/${live.direction}`);
 check("usa a qualidade salva (WebM, 30 fps, Leve)", live.ext === "webm" && live.bitrate === "light", `${live.ext}/${live.bitrate}`);
 const t = await titles();
 check("menu vira 'Parar gravação'", t.some(([title, on]) => title === "Parar gravação" && on), JSON.stringify(t.slice(-3)));
@@ -57,6 +57,21 @@ await click();
 await popup.waitForTimeout(500);
 const r = await phase(popup);
 check("duração < 3 s não grava e mostra erro", r.phase === "idle" && /mínima/.test(r.error ?? ""), JSON.stringify(r));
+
+// 4b) Velocidade e direção: o que o popup salva é o que o menu usa
+await popup.reload();
+await T.setSpeed(popup, 300);
+await popup.check("#dirDown");
+const saved = await popup.evaluate(async () => (await chrome.storage.local.get("scrollSettings")).scrollSettings);
+check("popup salva velocidade e direção", saved?.speed === 300 && saved?.direction === 1, JSON.stringify(saved));
+await popup.reload();
+check("popup reabre com a velocidade salva", (await popup.inputValue("#speed")) === "300");
+await popup.evaluate(() => chrome.storage.local.set({ scrollSettings: { speed: 400, direction: 1 } }));
+await setOptions(popup, { durationSec: 4, quality: { format: "webm" } });
+await click();
+const lv = await waitPhase(popup, "recording");
+check("menu usa a última velocidade salva", lv.speed === 400, String(lv.speed));
+await waitPhase(popup, "idle", 40000);
 
 // 5) Respeita 'duração' salva
 await setOptions(popup, { durationSec: 5, quality: { format: "webm" } });

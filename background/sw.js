@@ -47,9 +47,8 @@ chrome.runtime.onInstalled.addListener(async () => {
   updateMenu((await getRec()).phase);
 });
 
-// "Padrão" = o que está salvo no popup (duração, começar do topo, qualidade) + 120 px/s descendo.
-// Velocidade e direção não são salvas hoje, então valem os padrões do scroller.
-const DEFAULT_SPEED = 120;
+// "Padrão" = o que está salvo no popup: duração, começar do topo, qualidade, velocidade e direção.
+const DEFAULT_SCROLL = { speed: 120, direction: 1 };
 async function onMenuClick(info, tab) {
   if (info.menuItemId !== MENU_ID) return;
   const rec = await getRec();
@@ -57,7 +56,9 @@ async function onMenuClick(info, tab) {
   if (rec.phase !== "idle" || !tab?.id) return;
   const { durationSec = 0, startAtTop = false } = await getSettings();
   if (durationSec && durationSec < 3) return setRec({ phase: "idle", error: "A duração mínima é de 3 segundos. Ajuste no popup." });
-  await startRecording({ tabId: tab.id, speed: DEFAULT_SPEED, direction: 1, durationSec, startAtTop });
+  const { scrollSettings } = await chrome.storage.local.get("scrollSettings");
+  const { speed, direction } = { ...DEFAULT_SCROLL, ...scrollSettings };
+  await startRecording({ tabId: tab.id, speed, direction, durationSec, startAtTop });
 }
 chrome.contextMenus.onClicked.addListener(onMenuClick);
 
