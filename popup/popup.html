@@ -79,6 +79,51 @@
     <label class="check"><input id="ask" type="checkbox"> Perguntar sempre onde salvar</label>
   </details>
 
+  <details class="opts" id="qual">
+    <summary class="eyebrow">
+      <svg class="icon chevron" aria-hidden="true"><use href="../ui/icons.svg#chevron"/></svg>
+      Vídeo
+      <span id="qSummary" class="q-summary mono"></span>
+    </summary>
+
+    <div class="quality" role="group" aria-label="Qualidade do vídeo">
+      <div class="q-cell">
+        <label for="qRes" class="eyebrow">Resolução</label>
+        <select id="qRes">
+          <option value="native">Nativa</option>
+          <option value="2160">4K (2160p)</option>
+          <option value="1440">1440p</option>
+          <option value="1080">1080p</option>
+          <option value="720">720p</option>
+        </select>
+      </div>
+      <div class="q-cell">
+        <label for="qFps" class="eyebrow">Quadros</label>
+        <select id="qFps">
+          <option value="24">24 fps</option>
+          <option value="30">30 fps</option>
+          <option value="60">60 fps</option>
+        </select>
+      </div>
+      <div class="q-cell">
+        <label for="qBit" class="eyebrow">Qualidade</label>
+        <select id="qBit">
+          <option value="high">Alta · 50 Mbps</option>
+          <option value="medium">Média · 25 Mbps</option>
+          <option value="light">Leve · 10 Mbps</option>
+        </select>
+      </div>
+      <div class="q-cell">
+        <label for="qFmt" class="eyebrow">Formato</label>
+        <select id="qFmt">
+          <option value="mp4">MP4 (H.264)</option>
+          <option value="webm">WebM</option>
+        </select>
+      </div>
+    </div>
+    <p id="qHint" class="q-hint mono"></p>
+  </details>
+
   <section class="group" aria-label="Gravação">
     <button id="record" class="btn btn-primary btn-block" type="button">
       <svg class="icon" aria-hidden="true"><use id="recIcon" href="../ui/icons.svg#rec"/></svg>
@@ -100,6 +145,7 @@
   </p>
 
   <script src="../lib/folder-store.js"></script>
+  <script src="../lib/quality.js"></script>
   <script src="popup.js"></script>
 </body>
 </html>

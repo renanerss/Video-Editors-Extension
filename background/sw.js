@@ -50,10 +50,11 @@ async function abort(message) {
 /* ---------- Fluxo ---------- */
 async function startRecording({ tabId, speed, direction, durationSec, startAtTop }) {
   if ((await getRec()).phase !== "idle") return { ok: false };
+  const { quality } = await getSettings();
   await setRec({ phase: "picking", tabId, speed, direction, durationSec: durationSec || 0, startAtTop: Boolean(startAtTop) });
   try {
     await ensureOffscreen();
-    await toOffscreen({ type: "acquire" });
+    await toOffscreen({ type: "acquire", quality });
   } catch (e) {
     await abort(e.message);
   }

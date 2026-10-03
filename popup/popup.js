@@ -5,7 +5,8 @@ const els = {
   speed: $("speed"), speedVal: $("speedVal"), dirDown: $("dirDown"), dirUp: $("dirUp"),
   status: $("status"), statusIcon: $("statusIcon"), statusText: $("statusText"),
   record: $("record"), recIcon: $("recIcon"), recText: $("recText"),
-  opts: $("opts"), duration: $("duration"), durHint: $("durHint"),
+  opts: $("opts"), qual: $("qual"), qSummary: $("qSummary"), duration: $("duration"), durHint: $("durHint"),
+  qRes: $("qRes"), qFps: $("qFps"), qBit: $("qBit"), qFmt: $("qFmt"), qHint: $("qHint"),
   folderLabel: $("folderLabel"), folderBtn: $("folderBtn"), ask: $("ask"), top: $("top"),
   unsaved: $("unsaved"), retry: $("retry"), discard: $("discard"), discardText: $("discardText"),
 };
@@ -123,7 +124,7 @@ function setRec(next) {
 }
 
 /* ---------- Opções de gravação (salvas em chrome.storage.local) ---------- */
-let recSettings = { durationSec: null, askEveryTime: false, folderName: null, startAtTop: false };
+let recSettings = { durationSec: null, askEveryTime: false, folderName: null, startAtTop: false, quality: Quality.normalize() };
 
 function renderOptions() {
   els.duration.value = recSettings.durationSec ?? "";
@@ -135,7 +136,19 @@ function renderOptions() {
   els.folderBtn.title = recSettings.askEveryTime
     ? "A pasta escolhida é ignorada enquanto “Perguntar sempre” estiver ligado"
     : "Escolher a pasta de destino";
+  const q = Quality.normalize(recSettings.quality);
+  els.qRes.value = q.resolution;
+  els.qFps.value = String(q.fps);
+  els.qBit.value = q.bitrate;
+  els.qFmt.value = q.format;
+  els.qHint.textContent = qualityHint(q);
+  els.qSummary.textContent = `${q.resolution === "native" ? "Nativa" : q.resolution + "p"} · ${q.fps} fps · ${q.format.toUpperCase()}`;
   validateDuration();
+}
+// Estimativa do tamanho do arquivo: bitrate x duração (ex.: 50 Mbps ≈ 375 MB por minuto).
+function qualityHint(q) {
+  const mbPerMin = Math.round((Quality.BITRATES[q.bitrate] * 60) / 8);
+  return `≈ ${mbPerMin} MB por minuto de vídeo`;
 }
 const saveOptions = () => chrome.storage.local.set({ recSettings });
 
@@ -157,6 +170,15 @@ els.duration.addEventListener("change", () => {
   recSettings.durationSec = els.duration.value === "" || !Number.isFinite(n) ? null : Math.round(n);
   saveOptions();
 });
+for (const [el, key, parse] of [
+  [els.qRes, "resolution", String], [els.qFps, "fps", Number], [els.qBit, "bitrate", String], [els.qFmt, "format", String],
+]) {
+  el.addEventListener("change", () => {
+    recSettings.quality = Quality.normalize({ ...recSettings.quality, [key]: parse(el.value) });
+    saveOptions();
+    renderOptions();
+  });
+}
 els.top.addEventListener("change", () => {
   recSettings.startAtTop = els.top.checked;
   saveOptions();
@@ -166,7 +188,13 @@ els.ask.addEventListener("change", () => {
   saveOptions();
   renderOptions();
 });
-els.opts.addEventListener("toggle", () => chrome.storage.local.set({ optsOpen: els.opts.open })); // lembra aberto/fechado
+// Sanfona: um painel por vez (o popup do Chrome tem teto de 600 px). Lembra qual ficou aberto.
+for (const [panel, other] of [[els.opts, els.qual], [els.qual, els.opts]]) {
+  panel.addEventListener("toggle", () => {
+    if (panel.open) other.open = false;
+    chrome.storage.local.set({ optsOpen: els.opts.open, qualOpen: els.qual.open });
+  });
+}
 // A escolha da pasta fica numa aba de opções: o popup fecha quando um diálogo nativo abre.
 els.folderBtn.addEventListener("click", () => chrome.runtime.openOptionsPage());
 chrome.storage.onChanged.addListener((changes, area) => {
@@ -198,8 +226,10 @@ async function folderReady() {
 function statusView() {
   if (rec.phase === "unsaved") return { state: "error", icon: "alert", text: rec.error ?? "O vídeo ainda não foi salvo." };
   if (rec.phase === "recording") {
-    const webm = rec.ext === "webm" ? " Seu Chrome não suporta MP4 H.264, então salvo em WebM." : "";
-    return { state: "recording", icon: "dot", text: PHASE_TEXT.recording + webm };
+    const wanted = Quality.normalize(recSettings.quality).format;
+    const fallback = wanted === "mp4" && rec.ext === "webm" ? " Seu Chrome não suporta MP4 H.264, então salvo em WebM." : "";
+    const spec = rec.width ? ` ${rec.width}×${rec.height} · ${rec.fps} fps · ${rec.ext.toUpperCase()}.` : "";
+    return { state: "recording", icon: "dot", text: PHASE_TEXT.recording + spec + fallback };
   }
   if (rec.phase !== "idle") return { state: "busy", icon: "dot", text: PHASE_TEXT[rec.phase] ?? "" };
   if (notice?.error) return { state: "error", icon: "alert", text: notice.error };
@@ -217,8 +247,9 @@ function renderRecording() {
   const busy = rec.phase !== "idle";
   const recording = rec.phase === "recording";
   els.unsaved.hidden = rec.phase !== "unsaved";
-  els.opts.hidden = busy; // desabilitadas de qualquer jeito; liberam espaço (popup do Chrome tem teto de 600 px)
+  els.opts.hidden = els.qual.hidden = busy; // desabilitadas de qualquer jeito; liberam espaço (popup do Chrome tem teto de 600 px)
   els.duration.disabled = els.ask.disabled = els.top.disabled = els.folderBtn.disabled = busy;
+  for (const el of [els.qRes, els.qFps, els.qBit, els.qFmt]) el.disabled = busy;
   setIcon(els.recIcon, recording ? "stop" : "rec");
   els.recText.textContent = recording ? "Parar e salvar" : "Gravar e rolar";
   els.record.classList.toggle("btn-primary", !recording);
@@ -287,8 +318,9 @@ chrome.storage.onChanged.addListener((changes, area) => {
     running = res.running;
   } catch { /* script ainda não injetado: usa os padrões */ }
   render();
-  const stored = await chrome.storage.local.get(["recSettings", "optsOpen"]);
-  if (stored.optsOpen === false) els.opts.open = false;
+  const stored = await chrome.storage.local.get(["recSettings", "optsOpen", "qualOpen"]);
+  if (stored.qualOpen) { els.qual.open = true; els.opts.open = false; }
+  else if (stored.optsOpen === false) els.opts.open = false;
   recSettings = { ...recSettings, ...stored.recSettings };
   renderOptions();
   setRec((await chrome.storage.session.get("rec")).rec);
