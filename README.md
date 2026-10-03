@@ -13,6 +13,7 @@ Extensão Chromium (Manifest V3) que rola a página automaticamente em velocidad
 - [x] Fase 2.2: checkbox "Começar do início da página" (grava sempre do topo)
 - [x] Revisão de UI/UX com o design system Aetheris (tokens, Inter + JetBrains Mono, ícones SVG, acessibilidade)
 - [x] Fase 3: qualidade do vídeo — resolução (nativa, 4K, 1440p, 1080p, 720p, com redimensionamento real), fps (24/30/60), bitrate (Alta 50 / Média 25 / Leve 10 Mbps) e formato (MP4 H.264 ou WebM)
+- [x] Menu do botão direito no ícone: "Gravar e rolar (padrão)" e, gravando, "Parar gravação" (usa as opções salvas no popup + 120 px/s descendo)
 - [ ] Fase 4: polimento
 
 ## Qualidade do vídeo
@@ -74,4 +75,5 @@ Fontes: [MDN Browser Compat Data](https://github.com/mdn/browser-compat-data),
 `node tests/e2e-ui.mjs` — UI/UX: contraste real nos dois temas, foco, nomes acessíveis, altura ≤ 600 px, movimento reduzido, teclado.
 `node tests/e2e-save.mjs` — duração, pasta, "perguntar sempre", cancelar/salvar de novo/descartar.
 `node tests/e2e-quality.mjs` — resolução, fps, bitrate e formato medidos com ffprobe (precisa de ffmpeg).
+`node tests/e2e-menu.mjs` — menu do botão direito no ícone (inicia com o padrão, vira "Parar", respeita duração).
 `node tests/e2e-record.mjs` — fluxo de gravação (a fonte de vídeo é simulada; o seletor de tela real não existe sem monitor). `CANCEL=1` testa o cancelamento do seletor.

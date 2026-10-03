@@ -8,7 +8,8 @@
     "scripting",
     "storage",
     "offscreen",
-    "downloads"
+    "downloads",
+    "contextMenus"
   ],
   "action": {
     "default_title": "Scroll Recorder",
