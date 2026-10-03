@@ -7,11 +7,11 @@ const els = {
   record: $("record"), recIcon: $("recIcon"), recText: $("recText"),
   opts: $("opts"), qual: $("qual"), qSummary: $("qSummary"), duration: $("duration"), durHint: $("durHint"),
   qRes: $("qRes"), qFps: $("qFps"), qBit: $("qBit"), qFmt: $("qFmt"), qHint: $("qHint"),
-  folderLabel: $("folderLabel"), folderBtn: $("folderBtn"), ask: $("ask"), top: $("top"),
+  folderLabel: $("folderLabel"), folderBtn: $("folderBtn"), ask: $("ask"), top: $("top"), ease: $("ease"),
   clock: $("clock"), clockTime: $("clockTime"), clockSize: $("clockSize"),
   unsaved: $("unsaved"), retry: $("retry"), discard: $("discard"), discardText: $("discardText"),
 };
-const settings = { speed: 120, direction: 1 };
+const settings = { speed: 120, direction: 1, ease: false };
 let running = false;
 let tabId = null;
 let injected = false; // evita reinjetar o script a cada movimento do slider
@@ -48,7 +48,7 @@ async function ensureScroller() {
   injected = true;
 }
 // Velocidade e direção ficam salvas: o popup reabre como estava e o menu do ícone usa a última escolha.
-const saveScroll = () => chrome.storage.local.set({ scrollSettings: { speed: settings.speed, direction: settings.direction } });
+const saveScroll = () => chrome.storage.local.set({ scrollSettings: { speed: settings.speed, direction: settings.direction, ease: settings.ease } });
 const send = (msg) => chrome.tabs.sendMessage(tabId, { target: "scroller", ...msg });
 
 function render() {
@@ -60,6 +60,7 @@ function render() {
   const min = Number(els.speed.min), max = Number(els.speed.max);
   els.speed.style.setProperty("--pct", `${((settings.speed - min) / (max - min)) * 100}%`);
   (settings.direction === 1 ? els.dirDown : els.dirUp).checked = true;
+  els.ease.checked = settings.ease;
 }
 
 // Garante o script na página e envia as configurações atuais. Retorna o estado, ou undefined se a página não permite.
@@ -185,6 +186,11 @@ for (const [el, key, parse] of [
     renderOptions();
   });
 }
+els.ease.addEventListener("change", () => {
+  settings.ease = els.ease.checked;
+  saveScroll();
+  if (running) applySettings(); // vale já na próxima rolagem; no meio do caminho só afeta o fim
+});
 els.top.addEventListener("change", () => {
   recSettings.startAtTop = els.top.checked;
   saveOptions();
@@ -282,7 +288,7 @@ function renderRecording() {
   const recording = rec.phase === "recording";
   els.unsaved.hidden = rec.phase !== "unsaved";
   els.opts.hidden = els.qual.hidden = busy; // desabilitadas de qualquer jeito; liberam espaço (popup do Chrome tem teto de 600 px)
-  els.duration.disabled = els.ask.disabled = els.top.disabled = els.folderBtn.disabled = busy;
+  els.duration.disabled = els.ask.disabled = els.top.disabled = els.ease.disabled = els.folderBtn.disabled = busy;
   for (const el of [els.qRes, els.qFps, els.qBit, els.qFmt]) el.disabled = busy;
   setIcon(els.recIcon, recording ? "stop" : "rec");
   els.recText.textContent = recording ? "Parar e salvar" : "Gravar e rolar";
@@ -311,7 +317,7 @@ els.record.addEventListener("click", async () => {
   if (!tab?.id) return;
   await chrome.runtime.sendMessage({
     target: "background", type: "record-start",
-    tabId: tab.id, speed: settings.speed, direction: settings.direction, durationSec,
+    tabId: tab.id, speed: settings.speed, direction: settings.direction, ease: settings.ease, durationSec,
     startAtTop: Boolean(recSettings.startAtTop),
   });
   window.close(); // o seletor de tela do Chrome abre por cima; o popup não é mais necessário

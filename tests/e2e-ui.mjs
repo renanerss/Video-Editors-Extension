@@ -6,7 +6,7 @@ const { check, session, reopen, ctx } = T;
 
 const { target, popup } = await session(`${T.base}/long`);
 await popup.setViewportSize({ width: 320, height: 800 });
-const height = () => popup.evaluate(() => document.body.offsetHeight);
+const height = () => popup.evaluate(async () => { await document.fonts.ready; return document.body.offsetHeight; }); // espera as fontes: com a fonte reserva o texto quebra em mais linhas
 const setRec = (rec) => popup.evaluate((r) => chrome.storage.session.set({ rec: r }), rec);
 
 // Razão de contraste WCAG a partir de duas cores "rgb(r, g, b)" computadas pelo navegador.

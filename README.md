@@ -16,7 +16,8 @@ Extensão Chromium (Manifest V3) que rola a página automaticamente em velocidad
 - [x] Menu do botão direito no ícone: "Gravar e rolar (padrão)" e, gravando, "Parar gravação" (usa as opções salvas no popup, incluindo a última velocidade e direção)
 - [x] Atalho global **Alt+Shift+R** (mesmo comportamento do menu; mude em `chrome://extensions/shortcuts`)
 - [x] Cronômetro: tempo decorrido e tamanho do arquivo no popup, tempo no selo do ícone enquanto grava
-- [ ] Fase 4: polimento
+- [x] Movimento suave (opcional, desligado por padrão): acelera nos primeiros ~1 s e freia nos últimos ~1 s (fim da página ou fim do tempo)
+- [x] Fase 4: polimento (itens acima: velocidade lembrada, atalho, cronômetro, movimento suave)
 
 ## Qualidade do vídeo
 Painel **Vídeo** no popup. Os valores ficam salvos e são travados durante a gravação.
@@ -39,4 +40,5 @@ O tema claro é uma derivação com contraste medido (texto ≥ 4,5:1; controles
 `node tests/e2e-quality.mjs` — resolução, fps, bitrate e formato medidos com ffprobe (precisa de ffmpeg).
 `node tests/e2e-menu.mjs` — menu do botão direito no ícone (inicia com o padrão, vira "Parar", respeita duração).
 `node tests/e2e-clock.mjs` — cronômetro, tamanho do arquivo e selo do ícone.
+`node tests/e2e-ease.mjs` — movimento suave: mede a velocidade real do scroll no início, meio e fim.
 `node tests/e2e-record.mjs` — fluxo de gravação (a fonte de vídeo é simulada; o seletor de tela real não existe sem monitor). `CANCEL=1` testa o cancelamento do seletor.

@@ -48,7 +48,7 @@ chrome.runtime.onInstalled.addListener(async () => {
 });
 
 // "Padrão" = o que está salvo no popup: duração, começar do topo, qualidade, velocidade e direção.
-const DEFAULT_SCROLL = { speed: 120, direction: 1 };
+const DEFAULT_SCROLL = { speed: 120, direction: 1, ease: false };
 // Menu e atalho fazem a mesma coisa: ocioso grava com o padrão; gravando, para.
 async function toggleRecording(tab) {
   const rec = await getRec();
@@ -59,8 +59,8 @@ async function toggleRecording(tab) {
   const { durationSec = 0, startAtTop = false } = await getSettings();
   if (durationSec && durationSec < 3) return setRec({ phase: "idle", error: "A duração mínima é de 3 segundos. Ajuste no popup." });
   const { scrollSettings } = await chrome.storage.local.get("scrollSettings");
-  const { speed, direction } = { ...DEFAULT_SCROLL, ...scrollSettings };
-  await startRecording({ tabId: tab.id, speed, direction, durationSec, startAtTop });
+  const { speed, direction, ease } = { ...DEFAULT_SCROLL, ...scrollSettings };
+  await startRecording({ tabId: tab.id, speed, direction, ease, durationSec, startAtTop });
 }
 const onMenuClick = (info, tab) => info.menuItemId === MENU_ID && toggleRecording(tab);
 const onCommand = (command, tab) => command === MENU_ID && toggleRecording(tab);
@@ -104,10 +104,10 @@ async function abort(message) {
 }
 
 /* ---------- Fluxo ---------- */
-async function startRecording({ tabId, speed, direction, durationSec, startAtTop }) {
+async function startRecording({ tabId, speed, direction, ease, durationSec, startAtTop }) {
   if ((await getRec()).phase !== "idle") return { ok: false };
   const { quality } = await getSettings();
-  await setRec({ phase: "picking", tabId, speed, direction, durationSec: durationSec || 0, startAtTop: Boolean(startAtTop) });
+  await setRec({ phase: "picking", tabId, speed, direction, ease: Boolean(ease), durationSec: durationSec || 0, startAtTop: Boolean(startAtTop) });
   try {
     await ensureOffscreen();
     await toOffscreen({ type: "acquire", quality });
@@ -124,7 +124,7 @@ async function onAcquired(info) {
   await setRec(rec);
   try {
     await chrome.scripting.executeScript({ target: { tabId: rec.tabId }, files: ["content/scroller.js"] });
-    await tabSend(rec.tabId, { type: "configure", speed: rec.speed, direction: rec.direction });
+    await tabSend(rec.tabId, { type: "configure", speed: rec.speed, direction: rec.direction, ease: rec.ease });
     if (rec.startAtTop) await tabSend(rec.tabId, { type: "scrollToTop" }); // antes da contagem: ela já aparece no topo
     await tabSend(rec.tabId, { type: "countdown", seconds: COUNTDOWN_S }); // responde quando termina e some da tela
     const r = await toOffscreen({ type: "start" });
