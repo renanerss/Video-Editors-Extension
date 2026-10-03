@@ -10,6 +10,7 @@ Extensão Chromium (Manifest V3) que rola a página automaticamente em velocidad
 - [x] Fase 1: auto-scroll (play/pause, velocidade ao vivo, atalhos que já iniciam, direção) e tema claro/escuro
 - [x] Fase 2: gravação de tela (getDisplayMedia, contagem 3-2-1, grava e rola juntos, download)
 - [x] Fase 2.1: duração da gravação, pasta de destino (qualquer pasta), "perguntar sempre onde salvar" e proteção contra perder o vídeo
+- [x] Fase 2.2: checkbox "Começar do início da página" (grava sempre do topo)
 - [ ] Fase 3: MP4 H.264, bitrate, fps, resolução
 - [ ] Fase 4: polimento
 

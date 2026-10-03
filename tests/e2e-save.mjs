@@ -88,6 +88,7 @@ const record = (popup) => popup.click("#record");
   check("com 'perguntar sempre' o rótulo muda", (await popup.textContent("#folderLabel")) === "Pergunta toda vez");
   const sw = swOf();
   await sw.evaluate(() => {
+    globalThis.__origDownload = chrome.downloads.download; // para restaurar depois dos testes com stub
     const orig = chrome.downloads.download.bind(chrome.downloads);
     globalThis.__calls = []; globalThis.__mode = "cancel";
     chrome.downloads.download = async (o) => {
@@ -127,6 +128,63 @@ const record = (popup) => popup.click("#record");
   await popup.click("#discard");
   await waitPhase(popup, "idle");
   check("descartar apaga o temporário", (await opfsKeys(popup)).every((k) => !k.startsWith("rec-")), JSON.stringify(await opfsKeys(popup)));
+  await sw.evaluate(() => { chrome.downloads.download = globalThis.__origDownload; }); // fim dos stubs
+  await target.close(); await popup.close();
+}
+
+/* ---- 7) "Começar do início da página" ---- */
+const jump = (target, y) => target.evaluate((y) => scrollTo({ top: y, behavior: "instant" }), y);
+const scrollY = (target) => target.evaluate(() => scrollY);
+{
+  // Ligado: mesmo com a página rolada a 5000 px, a gravação começa no topo.
+  const { target, popup } = await session(`${T.base}/long`);
+  await jump(target, 5000);
+  await setOptions(popup, { durationSec: 5, startAtTop: true });
+  await reopen(popup);
+  check("checkbox mostra o valor salvo", await popup.isChecked("#top"));
+  await setSpeed(popup, 300);
+  await popup.click("#record");
+  await waitPhase(popup, "countdown");
+  await popup.waitForTimeout(600);
+  check("na contagem a página já está no topo", (await scrollY(target)) === 0, `(${await scrollY(target)} px)`);
+  await waitPhase(popup, "recording");
+  const done = await waitPhase(popup, "idle", 40000);
+  const y = await scrollY(target);
+  check("scroll começou do topo (~1050 px, não 5000+)", y > 700 && y < 1500, `(${y} px)`);
+  check("gravação salva", Boolean(done.saved), done.saved ?? JSON.stringify(done));
+  await target.close(); await popup.close();
+}
+{
+  // Desligado: continua de onde a página estava.
+  const { target, popup } = await session(`${T.base}/long`);
+  await jump(target, 5000);
+  await setOptions(popup, { durationSec: 5, startAtTop: false });
+  await reopen(popup);
+  await setSpeed(popup, 300);
+  await popup.click("#record");
+  await waitPhase(popup, "countdown");
+  await popup.waitForTimeout(600);
+  check("desligado: página não é movida", (await scrollY(target)) === 5000);
+  await waitPhase(popup, "recording");
+  await waitPhase(popup, "idle", 40000);
+  const y = await scrollY(target);
+  check("desligado: segue de onde estava (~6050 px)", y > 5700 && y < 6500, `(${y} px)`);
+  await target.close(); await popup.close();
+}
+{
+  // Ligado + "Subir": bloqueia com aviso (o scroll terminaria na hora).
+  const { target, popup } = await session(`${T.base}/long`);
+  await jump(target, 5000);
+  await setOptions(popup, { durationSec: 5, startAtTop: true });
+  await reopen(popup);
+  await popup.click("#direction"); // vira "Subir"
+  await popup.click("#record");
+  await popup.waitForTimeout(500);
+  check("topo + Subir mostra aviso", (await popup.textContent("#status")).includes("Subir"));
+  check("e não inicia gravação", (await phase(popup)).phase === "idle");
+  check("e não move a página", (await scrollY(target)) === 5000);
+  await popup.click("#top"); // desmarca
+  check("desmarcar persiste", !(await popup.evaluate(async () => (await chrome.storage.local.get("recSettings")).recSettings.startAtTop)));
   await target.close(); await popup.close();
 }
 

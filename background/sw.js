@@ -48,9 +48,9 @@ async function abort(message) {
 }
 
 /* ---------- Fluxo ---------- */
-async function startRecording({ tabId, speed, direction, durationSec }) {
+async function startRecording({ tabId, speed, direction, durationSec, startAtTop }) {
   if ((await getRec()).phase !== "idle") return { ok: false };
-  await setRec({ phase: "picking", tabId, speed, direction, durationSec: durationSec || 0 });
+  await setRec({ phase: "picking", tabId, speed, direction, durationSec: durationSec || 0, startAtTop: Boolean(startAtTop) });
   try {
     await ensureOffscreen();
     await toOffscreen({ type: "acquire" });
@@ -68,6 +68,7 @@ async function onAcquired(info) {
   try {
     await chrome.scripting.executeScript({ target: { tabId: rec.tabId }, files: ["content/scroller.js"] });
     await tabSend(rec.tabId, { type: "configure", speed: rec.speed, direction: rec.direction });
+    if (rec.startAtTop) await tabSend(rec.tabId, { type: "scrollToTop" }); // antes da contagem: ela já aparece no topo
     await tabSend(rec.tabId, { type: "countdown", seconds: COUNTDOWN_S }); // responde quando termina e some da tela
     const r = await toOffscreen({ type: "start" });
     if (!r?.ok) throw new Error(r?.error ?? "Falha ao iniciar o gravador.");
