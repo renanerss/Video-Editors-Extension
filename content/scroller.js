@@ -83,6 +83,28 @@
     chrome.runtime.sendMessage({ type: "scroll-stopped" }).catch(() => {});
   }
 
+  // Contagem regressiva grande no centro da página. Some por completo antes de a gravação começar.
+  function countdown(seconds) {
+    return new Promise((resolve) => {
+      const host = document.createElement("div");
+      host.style.cssText = "all:initial;position:fixed;inset:0;z-index:2147483647;pointer-events:none;display:grid;place-items:center";
+      const root = host.attachShadow({ mode: "closed" });
+      root.innerHTML = `<style>div{width:240px;height:240px;border-radius:50%;display:grid;place-items:center;
+        background:rgba(0,0,0,.6);color:#fff;font:700 140px system-ui,sans-serif}</style><div></div>`;
+      const label = root.querySelector("div");
+      let n = seconds;
+      label.textContent = n;
+      document.documentElement.append(host);
+      const timer = setInterval(() => {
+        n -= 1;
+        if (n > 0) { label.textContent = n; return; }
+        clearInterval(timer);
+        host.remove();
+        setTimeout(resolve, 150); // deixa o navegador pintar um frame sem o overlay
+      }, 1000);
+    });
+  }
+
   function snapshot() {
     return { running: state.running, speed: state.speed, direction: state.direction };
   }
@@ -96,6 +118,9 @@
         break;
       case "start": start(); break;
       case "stop": if (state.running) stop(); break;
+      case "countdown":
+        countdown(msg.seconds).then(() => sendResponse(snapshot()));
+        return true; // resposta assíncrona
     }
     sendResponse(snapshot());
   });

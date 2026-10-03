@@ -2,8 +2,14 @@
   "manifest_version": 3,
   "name": "Scroll Recorder para Editores",
   "version": "0.1.0",
-  "description": "Auto-scroll suave com velocidade ajustável para gravar páginas web.",
-  "permissions": ["activeTab", "scripting", "storage"],
+  "description": "Auto-scroll suave com velocidade ajustável e gravação de tela em alta qualidade.",
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "storage",
+    "offscreen",
+    "downloads"
+  ],
   "action": {
     "default_title": "Scroll Recorder",
     "default_popup": "popup/popup.html",
@@ -17,5 +23,9 @@
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",
     "128": "icons/icon128.png"
+  },
+  "minimum_chrome_version": "116",
+  "background": {
+    "service_worker": "background/sw.js"
   }
 }

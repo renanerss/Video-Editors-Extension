@@ -8,7 +8,7 @@ import fs from "node:fs";
 const src = path.resolve(import.meta.dirname, "..");
 // Cópia de teste: activeTab só vale com clique real no ícone, então liberamos o host só aqui.
 const ext = fs.mkdtempSync(path.join(os.tmpdir(), "ext-"));
-for (const d of ["popup", "content", "icons"]) fs.cpSync(path.join(src, d), path.join(ext, d), { recursive: true });
+for (const d of ["popup", "content", "icons", "background", "offscreen"]) fs.cpSync(path.join(src, d), path.join(ext, d), { recursive: true });
 const manifest = JSON.parse(fs.readFileSync(path.join(src, "manifest.json")));
 manifest.host_permissions = ["<all_urls>"];
 fs.writeFileSync(path.join(ext, "manifest.json"), JSON.stringify(manifest));
