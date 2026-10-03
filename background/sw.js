@@ -49,18 +49,23 @@ chrome.runtime.onInstalled.addListener(async () => {
 
 // "Padrão" = o que está salvo no popup: duração, começar do topo, qualidade, velocidade e direção.
 const DEFAULT_SCROLL = { speed: 120, direction: 1 };
-async function onMenuClick(info, tab) {
-  if (info.menuItemId !== MENU_ID) return;
+// Menu e atalho fazem a mesma coisa: ocioso grava com o padrão; gravando, para.
+async function toggleRecording(tab) {
   const rec = await getRec();
   if (rec.phase === "recording") return stopRecording();
-  if (rec.phase !== "idle" || !tab?.id) return;
+  if (rec.phase !== "idle") return;
+  if (!tab?.id) tab = (await chrome.tabs.query({ active: true, lastFocusedWindow: true }))[0];
+  if (!tab?.id) return;
   const { durationSec = 0, startAtTop = false } = await getSettings();
   if (durationSec && durationSec < 3) return setRec({ phase: "idle", error: "A duração mínima é de 3 segundos. Ajuste no popup." });
   const { scrollSettings } = await chrome.storage.local.get("scrollSettings");
   const { speed, direction } = { ...DEFAULT_SCROLL, ...scrollSettings };
   await startRecording({ tabId: tab.id, speed, direction, durationSec, startAtTop });
 }
+const onMenuClick = (info, tab) => info.menuItemId === MENU_ID && toggleRecording(tab);
+const onCommand = (command, tab) => command === MENU_ID && toggleRecording(tab);
 chrome.contextMenus.onClicked.addListener(onMenuClick);
+chrome.commands.onCommand.addListener(onCommand); // atalho: Alt+Shift+R (mudável em chrome://extensions/shortcuts)
 
 /* ---------- Offscreen ---------- */
 async function ensureOffscreen() {

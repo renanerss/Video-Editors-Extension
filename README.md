@@ -14,6 +14,7 @@ Extensão Chromium (Manifest V3) que rola a página automaticamente em velocidad
 - [x] Revisão de UI/UX com o design system Aetheris (tokens, Inter + JetBrains Mono, ícones SVG, acessibilidade)
 - [x] Fase 3: qualidade do vídeo — resolução (nativa, 4K, 1440p, 1080p, 720p, com redimensionamento real), fps (24/30/60), bitrate (Alta 50 / Média 25 / Leve 10 Mbps) e formato (MP4 H.264 ou WebM)
 - [x] Menu do botão direito no ícone: "Gravar e rolar (padrão)" e, gravando, "Parar gravação" (usa as opções salvas no popup, incluindo a última velocidade e direção)
+- [x] Atalho global **Alt+Shift+R** (mesmo comportamento do menu; mude em `chrome://extensions/shortcuts`)
 - [ ] Fase 4: polimento
 
 ## Qualidade do vídeo

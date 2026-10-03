@@ -73,6 +73,21 @@ const lv = await waitPhase(popup, "recording");
 check("menu usa a última velocidade salva", lv.speed === 400, String(lv.speed));
 await waitPhase(popup, "idle", 40000);
 
+// 4c) Atalho de teclado: mesmo comportamento do menu (inicia e, gravando, para)
+const manifest = await popup.evaluate(() => chrome.runtime.getManifest().commands);
+check("atalho declarado no manifest (Alt+Shift+R)", manifest?.["toggle-recording"]?.suggested_key?.default === "Alt+Shift+R", JSON.stringify(manifest));
+const key = () => worker.evaluate((id) => onCommand("toggle-recording", { id }), tabId);
+await worker.evaluate((id) => onCommand("outro-comando", { id }), tabId);
+check("comando desconhecido é ignorado", (await phase(popup)).phase === "idle");
+await setOptions(popup, { durationSec: 0, quality: { format: "webm" } });
+await key();
+await waitPhase(popup, "recording");
+check("atalho inicia a gravação", true);
+await target.waitForTimeout(1200);
+await key();
+const kd = await waitPhase(popup, "idle", 30000);
+check("atalho durante a gravação para e salva", Boolean(kd.saved) && !kd.error, kd.saved ?? JSON.stringify(kd));
+
 // 5) Respeita 'duração' salva
 await setOptions(popup, { durationSec: 5, quality: { format: "webm" } });
 await click();
