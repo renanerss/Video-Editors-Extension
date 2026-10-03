@@ -84,3 +84,8 @@ select:disabled { cursor: not-allowed; opacity: .45; }
 .q-hint { margin: 0; min-height: 15px; font-size: 11px; line-height: 1.4; color: var(--sub); }
 .q-summary { margin-left: auto; font-size: 11px; letter-spacing: 0; text-transform: none; color: var(--accent-ink); white-space: nowrap; }
 .opts[open] .q-summary { display: none; } /* aberto, os selects já mostram os valores */
+
+/* Cronômetro da gravação: tempo e tamanho do arquivo, fora do status para não ser lido a cada segundo */
+.clock { display: flex; justify-content: space-between; align-items: baseline; margin: 0; padding: 8px 10px; background: var(--panel); border: 1px solid var(--border); }
+#clockTime { font-size: 20px; font-weight: 600; color: var(--danger); letter-spacing: .02em; }
+#clockSize { font-size: 12px; color: var(--sub); }

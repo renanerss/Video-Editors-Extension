@@ -8,6 +8,7 @@ const els = {
   opts: $("opts"), qual: $("qual"), qSummary: $("qSummary"), duration: $("duration"), durHint: $("durHint"),
   qRes: $("qRes"), qFps: $("qFps"), qBit: $("qBit"), qFmt: $("qFmt"), qHint: $("qHint"),
   folderLabel: $("folderLabel"), folderBtn: $("folderBtn"), ask: $("ask"), top: $("top"),
+  clock: $("clock"), clockTime: $("clockTime"), clockSize: $("clockSize"),
   unsaved: $("unsaved"), retry: $("retry"), discard: $("discard"), discardText: $("discardText"),
 };
 const settings = { speed: 120, direction: 1 };
@@ -248,7 +249,35 @@ function renderStatus() {
   els.statusText.textContent = v.text;
 }
 
+/* ---------- Cronômetro (tempo decorrido + tamanho do arquivo) ---------- */
+let clockTimer = null;
+let recBytes = 0;
+function formatClock(ms) {
+  const s = Math.max(0, Math.floor(ms / 1000));
+  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
+  const mm = String(m).padStart(2, "0"), ss = String(sec).padStart(2, "0");
+  return h ? `${h}:${mm}:${ss}` : `${m}:${ss}`;
+}
+function formatBytes(b) {
+  return b >= 1e9 ? `${(b / 1e9).toFixed(2)} GB` : `${Math.round(b / 1e6)} MB`;
+}
+function tickClock() {
+  els.clockTime.textContent = formatClock(Date.now() - (rec.startedAt ?? Date.now()));
+  els.clockSize.textContent = recBytes ? formatBytes(recBytes) : "";
+}
+function syncClock() {
+  const on = rec.phase === "recording" && Boolean(rec.startedAt);
+  els.clock.hidden = !on;
+  if (on && clockTimer === null) clockTimer = setInterval(tickClock, 500);
+  if (!on && clockTimer !== null) { clearInterval(clockTimer); clockTimer = null; recBytes = 0; }
+  if (on) tickClock();
+}
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === "session" && changes.recProgress) { recBytes = changes.recProgress.newValue?.bytes ?? 0; if (!els.clock.hidden) tickClock(); }
+});
+
 function renderRecording() {
+  syncClock();
   const busy = rec.phase !== "idle";
   const recording = rec.phase === "recording";
   els.unsaved.hidden = rec.phase !== "unsaved";
@@ -331,6 +360,7 @@ chrome.storage.onChanged.addListener((changes, area) => {
   else if (stored.optsOpen === false) els.opts.open = false;
   recSettings = { ...recSettings, ...stored.recSettings };
   renderOptions();
+  recBytes = (await chrome.storage.session.get("recProgress")).recProgress?.bytes ?? 0;
   setRec((await chrome.storage.session.get("rec")).rec);
   if (rec.error || rec.saved) chrome.runtime.sendMessage({ target: "background", type: "clear-notice" }); // mostra uma vez só
 })();

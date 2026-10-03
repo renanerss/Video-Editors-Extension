@@ -67,6 +67,20 @@ const onCommand = (command, tab) => command === MENU_ID && toggleRecording(tab);
 chrome.contextMenus.onClicked.addListener(onMenuClick);
 chrome.commands.onCommand.addListener(onCommand); // atalho: Alt+Shift+R (mudável em chrome://extensions/shortcuts)
 
+// Tempo no ícone enquanto grava (m:ss; passando de 10 min, só os minutos: o selo comporta ~4 caracteres).
+function clockText(ms) {
+  const s = Math.floor(ms / 1000), m = Math.floor(s / 60);
+  return m >= 10 ? `${m}m` : `${m}:${String(s % 60).padStart(2, "0")}`;
+}
+// O gravador avisa a cada pedaço (~1 s). O tamanho vai para uma chave própria, para não
+// disparar todo o fluxo de estado (setRec) por segundo.
+async function onProgress(bytes) {
+  const rec = await getRec();
+  if (rec.phase !== "recording" || !rec.startedAt) return;
+  await chrome.storage.session.set({ recProgress: { bytes, at: Date.now() } });
+  await chrome.action.setBadgeText({ text: clockText(Date.now() - rec.startedAt) });
+}
+
 /* ---------- Offscreen ---------- */
 async function ensureOffscreen() {
   if (await chrome.offscreen.hasDocument()) return;
@@ -79,6 +93,7 @@ async function ensureOffscreen() {
 const closeOffscreen = () => chrome.offscreen.closeDocument().catch(() => {});
 
 async function reset(extra = {}) {
+  await chrome.storage.session.remove("recProgress");
   await setRec({ phase: "idle", ...extra });
   await closeOffscreen();
 }
@@ -221,6 +236,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     case "record-stop":
       stopRecording().then(() => sendResponse({ ok: true }));
       return true;
+    case "progress": onProgress(msg.bytes); break;
     case "acquired": onAcquired(msg); break;
     case "acquire-failed":
       // "NotAllowedError" = você cancelou o seletor: não é erro, só volta ao início.
