@@ -47,19 +47,39 @@ chrome.runtime.onInstalled.addListener(async () => {
   updateMenu((await getRec()).phase);
 });
 
-// "Padrão" = o que está salvo no popup (duração, começar do topo, qualidade) + 120 px/s descendo.
-// Velocidade e direção não são salvas hoje, então valem os padrões do scroller.
-const DEFAULT_SPEED = 120;
-async function onMenuClick(info, tab) {
-  if (info.menuItemId !== MENU_ID) return;
+// "Padrão" = o que está salvo no popup: duração, começar do topo, qualidade, velocidade e direção.
+const DEFAULT_SCROLL = { speed: 120, direction: 1, ease: false };
+// Menu e atalho fazem a mesma coisa: ocioso grava com o padrão; gravando, para.
+async function toggleRecording(tab) {
   const rec = await getRec();
   if (rec.phase === "recording") return stopRecording();
-  if (rec.phase !== "idle" || !tab?.id) return;
+  if (rec.phase !== "idle") return;
+  if (!tab?.id) tab = (await chrome.tabs.query({ active: true, lastFocusedWindow: true }))[0];
+  if (!tab?.id) return;
   const { durationSec = 0, startAtTop = false } = await getSettings();
   if (durationSec && durationSec < 3) return setRec({ phase: "idle", error: "A duração mínima é de 3 segundos. Ajuste no popup." });
-  await startRecording({ tabId: tab.id, speed: DEFAULT_SPEED, direction: 1, durationSec, startAtTop });
+  const { scrollSettings } = await chrome.storage.local.get("scrollSettings");
+  const { speed, direction, ease } = { ...DEFAULT_SCROLL, ...scrollSettings };
+  await startRecording({ tabId: tab.id, speed, direction, ease, durationSec, startAtTop });
 }
+const onMenuClick = (info, tab) => info.menuItemId === MENU_ID && toggleRecording(tab);
+const onCommand = (command, tab) => command === MENU_ID && toggleRecording(tab);
 chrome.contextMenus.onClicked.addListener(onMenuClick);
+chrome.commands.onCommand.addListener(onCommand); // atalho: Alt+Shift+R (mudável em chrome://extensions/shortcuts)
+
+// Tempo no ícone enquanto grava (m:ss; passando de 10 min, só os minutos: o selo comporta ~4 caracteres).
+function clockText(ms) {
+  const s = Math.floor(ms / 1000), m = Math.floor(s / 60);
+  return m >= 10 ? `${m}m` : `${m}:${String(s % 60).padStart(2, "0")}`;
+}
+// O gravador avisa a cada pedaço (~1 s). O tamanho vai para uma chave própria, para não
+// disparar todo o fluxo de estado (setRec) por segundo.
+async function onProgress(bytes) {
+  const rec = await getRec();
+  if (rec.phase !== "recording" || !rec.startedAt) return;
+  await chrome.storage.session.set({ recProgress: { bytes, at: Date.now() } });
+  await chrome.action.setBadgeText({ text: clockText(Date.now() - rec.startedAt) });
+}
 
 /* ---------- Offscreen ---------- */
 async function ensureOffscreen() {
@@ -73,6 +93,7 @@ async function ensureOffscreen() {
 const closeOffscreen = () => chrome.offscreen.closeDocument().catch(() => {});
 
 async function reset(extra = {}) {
+  await chrome.storage.session.remove("recProgress");
   await setRec({ phase: "idle", ...extra });
   await closeOffscreen();
 }
@@ -83,10 +104,10 @@ async function abort(message) {
 }
 
 /* ---------- Fluxo ---------- */
-async function startRecording({ tabId, speed, direction, durationSec, startAtTop }) {
+async function startRecording({ tabId, speed, direction, ease, durationSec, startAtTop }) {
   if ((await getRec()).phase !== "idle") return { ok: false };
   const { quality } = await getSettings();
-  await setRec({ phase: "picking", tabId, speed, direction, durationSec: durationSec || 0, startAtTop: Boolean(startAtTop) });
+  await setRec({ phase: "picking", tabId, speed, direction, ease: Boolean(ease), durationSec: durationSec || 0, startAtTop: Boolean(startAtTop) });
   try {
     await ensureOffscreen();
     await toOffscreen({ type: "acquire", quality });
@@ -103,7 +124,7 @@ async function onAcquired(info) {
   await setRec(rec);
   try {
     await chrome.scripting.executeScript({ target: { tabId: rec.tabId }, files: ["content/scroller.js"] });
-    await tabSend(rec.tabId, { type: "configure", speed: rec.speed, direction: rec.direction });
+    await tabSend(rec.tabId, { type: "configure", speed: rec.speed, direction: rec.direction, ease: rec.ease });
     if (rec.startAtTop) await tabSend(rec.tabId, { type: "scrollToTop" }); // antes da contagem: ela já aparece no topo
     await tabSend(rec.tabId, { type: "countdown", seconds: COUNTDOWN_S }); // responde quando termina e some da tela
     const r = await toOffscreen({ type: "start" });
@@ -215,6 +236,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     case "record-stop":
       stopRecording().then(() => sendResponse({ ok: true }));
       return true;
+    case "progress": onProgress(msg.bytes); break;
     case "acquired": onAcquired(msg); break;
     case "acquire-failed":
       // "NotAllowedError" = você cancelou o seletor: não é erro, só volta ao início.

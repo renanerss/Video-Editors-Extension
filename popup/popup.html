@@ -76,6 +76,7 @@
     </div>
 
     <label class="check"><input id="top" type="checkbox"> Começar do início da página</label>
+    <label class="check" title="Acelera nos primeiros ~1 s e freia nos últimos ~1 s, como um movimento de câmera."><input id="ease" type="checkbox"> Movimento suave (início e fim)</label>
     <label class="check"><input id="ask" type="checkbox"> Perguntar sempre onde salvar</label>
   </details>
 
@@ -129,6 +130,10 @@
       <svg class="icon" aria-hidden="true"><use id="recIcon" href="../ui/icons.svg#rec"/></svg>
       <span id="recText">Gravar e rolar</span>
     </button>
+    <p id="clock" class="clock" role="timer" hidden>
+      <span id="clockTime" class="mono">0:00</span>
+      <span id="clockSize" class="mono"></span>
+    </p>
     <div id="unsaved" class="row" hidden>
       <button id="retry" class="btn btn-sm" type="button">
         <svg class="icon" aria-hidden="true"><use href="../ui/icons.svg#download"/></svg>Salvar de novo

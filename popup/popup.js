@@ -7,10 +7,11 @@ const els = {
   record: $("record"), recIcon: $("recIcon"), recText: $("recText"),
   opts: $("opts"), qual: $("qual"), qSummary: $("qSummary"), duration: $("duration"), durHint: $("durHint"),
   qRes: $("qRes"), qFps: $("qFps"), qBit: $("qBit"), qFmt: $("qFmt"), qHint: $("qHint"),
-  folderLabel: $("folderLabel"), folderBtn: $("folderBtn"), ask: $("ask"), top: $("top"),
+  folderLabel: $("folderLabel"), folderBtn: $("folderBtn"), ask: $("ask"), top: $("top"), ease: $("ease"),
+  clock: $("clock"), clockTime: $("clockTime"), clockSize: $("clockSize"),
   unsaved: $("unsaved"), retry: $("retry"), discard: $("discard"), discardText: $("discardText"),
 };
-const settings = { speed: 120, direction: 1 };
+const settings = { speed: 120, direction: 1, ease: false };
 let running = false;
 let tabId = null;
 let injected = false; // evita reinjetar o script a cada movimento do slider
@@ -46,6 +47,8 @@ async function ensureScroller() {
   await chrome.scripting.executeScript({ target: { tabId }, files: ["content/scroller.js"] });
   injected = true;
 }
+// Velocidade e direção ficam salvas: o popup reabre como estava e o menu do ícone usa a última escolha.
+const saveScroll = () => chrome.storage.local.set({ scrollSettings: { speed: settings.speed, direction: settings.direction, ease: settings.ease } });
 const send = (msg) => chrome.tabs.sendMessage(tabId, { target: "scroller", ...msg });
 
 function render() {
@@ -57,6 +60,7 @@ function render() {
   const min = Number(els.speed.min), max = Number(els.speed.max);
   els.speed.style.setProperty("--pct", `${((settings.speed - min) / (max - min)) * 100}%`);
   (settings.direction === 1 ? els.dirDown : els.dirUp).checked = true;
+  els.ease.checked = settings.ease;
 }
 
 // Garante o script na página e envia as configurações atuais. Retorna o estado, ou undefined se a página não permite.
@@ -85,6 +89,7 @@ els.play.addEventListener("click", () => setRunning(!running));
 els.speed.addEventListener("input", () => {
   settings.speed = Number(els.speed.value);
   render();
+  saveScroll();
   if (running) applySettings();
 });
 
@@ -93,12 +98,14 @@ document.querySelectorAll(".presets button").forEach((b) =>
   b.addEventListener("click", () => {
     settings.speed = Number(b.dataset.speed);
     render();
+    saveScroll();
     setRunning(true);
   })
 );
 for (const radio of [els.dirDown, els.dirUp]) {
   radio.addEventListener("change", () => {
     settings.direction = Number(radio.value);
+    saveScroll();
     if (running) applySettings();
   });
 }
@@ -179,6 +186,11 @@ for (const [el, key, parse] of [
     renderOptions();
   });
 }
+els.ease.addEventListener("change", () => {
+  settings.ease = els.ease.checked;
+  saveScroll();
+  if (running) applySettings(); // vale já na próxima rolagem; no meio do caminho só afeta o fim
+});
 els.top.addEventListener("change", () => {
   recSettings.startAtTop = els.top.checked;
   saveOptions();
@@ -243,12 +255,40 @@ function renderStatus() {
   els.statusText.textContent = v.text;
 }
 
+/* ---------- Cronômetro (tempo decorrido + tamanho do arquivo) ---------- */
+let clockTimer = null;
+let recBytes = 0;
+function formatClock(ms) {
+  const s = Math.max(0, Math.floor(ms / 1000));
+  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
+  const mm = String(m).padStart(2, "0"), ss = String(sec).padStart(2, "0");
+  return h ? `${h}:${mm}:${ss}` : `${m}:${ss}`;
+}
+function formatBytes(b) {
+  return b >= 1e9 ? `${(b / 1e9).toFixed(2)} GB` : `${Math.round(b / 1e6)} MB`;
+}
+function tickClock() {
+  els.clockTime.textContent = formatClock(Date.now() - (rec.startedAt ?? Date.now()));
+  els.clockSize.textContent = recBytes ? formatBytes(recBytes) : "";
+}
+function syncClock() {
+  const on = rec.phase === "recording" && Boolean(rec.startedAt);
+  els.clock.hidden = !on;
+  if (on && clockTimer === null) clockTimer = setInterval(tickClock, 500);
+  if (!on && clockTimer !== null) { clearInterval(clockTimer); clockTimer = null; recBytes = 0; }
+  if (on) tickClock();
+}
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === "session" && changes.recProgress) { recBytes = changes.recProgress.newValue?.bytes ?? 0; if (!els.clock.hidden) tickClock(); }
+});
+
 function renderRecording() {
+  syncClock();
   const busy = rec.phase !== "idle";
   const recording = rec.phase === "recording";
   els.unsaved.hidden = rec.phase !== "unsaved";
   els.opts.hidden = els.qual.hidden = busy; // desabilitadas de qualquer jeito; liberam espaço (popup do Chrome tem teto de 600 px)
-  els.duration.disabled = els.ask.disabled = els.top.disabled = els.folderBtn.disabled = busy;
+  els.duration.disabled = els.ask.disabled = els.top.disabled = els.ease.disabled = els.folderBtn.disabled = busy;
   for (const el of [els.qRes, els.qFps, els.qBit, els.qFmt]) el.disabled = busy;
   setIcon(els.recIcon, recording ? "stop" : "rec");
   els.recText.textContent = recording ? "Parar e salvar" : "Gravar e rolar";
@@ -277,7 +317,7 @@ els.record.addEventListener("click", async () => {
   if (!tab?.id) return;
   await chrome.runtime.sendMessage({
     target: "background", type: "record-start",
-    tabId: tab.id, speed: settings.speed, direction: settings.direction, durationSec,
+    tabId: tab.id, speed: settings.speed, direction: settings.direction, ease: settings.ease, durationSec,
     startAtTop: Boolean(recSettings.startAtTop),
   });
   window.close(); // o seletor de tela do Chrome abre por cima; o popup não é mais necessário
@@ -311,18 +351,22 @@ chrome.storage.onChanged.addListener((changes, area) => {
   await initTheme();
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   tabId = tab?.id ?? null;
+  const { scrollSettings } = await chrome.storage.local.get("scrollSettings");
+  if (scrollSettings) Object.assign(settings, scrollSettings);
   try {
     const res = await send({ type: "configure" }); // só funciona se o script já estiver injetado
-    Object.assign(settings, { speed: res.speed, direction: res.direction });
     injected = true;
     running = res.running;
-  } catch { /* script ainda não injetado: usa os padrões */ }
+    // Rodando agora, vale o que a página está fazendo; parado, vale o que ficou salvo.
+    if (res.running) Object.assign(settings, { speed: res.speed, direction: res.direction });
+  } catch { /* script ainda não injetado: usa o salvo ou os padrões */ }
   render();
   const stored = await chrome.storage.local.get(["recSettings", "optsOpen", "qualOpen"]);
   if (stored.qualOpen) { els.qual.open = true; els.opts.open = false; }
   else if (stored.optsOpen === false) els.opts.open = false;
   recSettings = { ...recSettings, ...stored.recSettings };
   renderOptions();
+  recBytes = (await chrome.storage.session.get("recProgress")).recProgress?.bytes ?? 0;
   setRec((await chrome.storage.session.get("rec")).rec);
   if (rec.error || rec.saved) chrome.runtime.sendMessage({ target: "background", type: "clear-notice" }); // mostra uma vez só
 })();

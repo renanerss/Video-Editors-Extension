@@ -30,6 +30,7 @@ let writeChain = Promise.resolve();
 let chosen = null; // { mime, ext }
 let quality = Quality.normalize();
 let pipeline = null; // { stop() } quando o vídeo é redimensionado por canvas
+let bytesWritten = 0; // tamanho já gravado em disco, informado ao popup/ícone a cada pedaço
 let outStream = null; // o que vai para o MediaRecorder (a captura direta ou o canvas)
 
 const notify = (msg) => chrome.runtime.sendMessage({ target: "background", ...msg }).catch(() => {});
@@ -139,11 +140,16 @@ async function start() {
     fileHandle = await root.getFileHandle(fileName, { create: true });
     writable = await fileHandle.createWritable();
     writeChain = Promise.resolve();
+    bytesWritten = 0;
     recorder = new MediaRecorder(outStream, {
       mimeType: chosen.mime, videoBitsPerSecond: Quality.BITRATES[quality.bitrate] * 1_000_000,
     });
     recorder.ondataavailable = (e) => {
-      if (e.data.size) writeChain = writeChain.then(() => writable.write(e.data));
+      if (!e.data.size) return;
+      writeChain = writeChain.then(() => writable.write(e.data)).then(() => {
+        bytesWritten += e.data.size;
+        notify({ type: "progress", bytes: bytesWritten });
+      });
     };
     const started = new Promise((res) => recorder.addEventListener("start", res, { once: true }));
     recorder.start(TIMESLICE_MS);

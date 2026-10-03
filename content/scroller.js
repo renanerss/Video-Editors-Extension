@@ -10,9 +10,29 @@
     pos: 0,            // posição em ponto flutuante (o navegador arredonda scrollTop)
     lastSet: 0,
     lastTime: 0,
+    ease: false,       // começa e termina devagar (movimento de câmera)
+    startedAt: 0,      // instante do start, para a rampa de aceleração
     stopAt: null,      // instante (ms) em que o scroll para sozinho; usado pela gravação com duração
     raf: 0,
   };
+
+  const EASE_MS = 1000; // duração da aceleração inicial e da frenagem final
+
+  // Fator (0..1) aplicado à velocidade escolhida. Sem easing é sempre 1.
+  // - Início: sobe suave (smoothstep) nos primeiros EASE_MS.
+  // - Fim da página: frenagem a desaceleração constante (v ~ raiz da distância restante), que
+  //   cobre exatamente speed*EASE_MS/2 de rolagem, ou seja, ~EASE_MS de frenagem.
+  // - Fim do tempo (gravação com duração): rampa descendente nos últimos EASE_MS.
+  // O piso evita ficar parado antes de chegar ao fim.
+  function easeFactor(now, remainingPx) {
+    if (!state.ease) return 1;
+    const smooth = (x) => { x = Math.min(Math.max(x, 0), 1); return x * x * (3 - 2 * x); };
+    const fIn = smooth((now - state.startedAt) / EASE_MS);
+    const brake = Math.max(state.speed * EASE_MS / 2000, 1);
+    const fEnd = Math.sqrt(Math.min(Math.max(remainingPx / brake, 0), 1));
+    const fTime = state.stopAt === null ? 1 : smooth((state.stopAt - now) / EASE_MS);
+    return Math.max(Math.min(fIn, fEnd, fTime), 0.03);
+  }
 
   const maxScroll = (el) => el.scrollHeight - el.clientHeight;
 
@@ -53,7 +73,8 @@
     if (Math.abs(el.scrollTop - state.lastSet) > 2) state.pos = el.scrollTop;
 
     const max = maxScroll(el);
-    state.pos += state.direction * state.speed * dt;
+    const remaining = state.direction === 1 ? max - state.pos : state.pos;
+    state.pos += state.direction * state.speed * easeFactor(now, remaining) * dt;
 
     const atEnd = state.direction === 1 ? state.pos >= max : state.pos <= 0;
     if (atEnd) { // chegou ao fim: trava na borda e para
@@ -74,7 +95,7 @@
     state.target = findTarget();
     state.pos = state.target.scrollTop;
     state.lastSet = state.pos;
-    state.lastTime = performance.now();
+    state.lastTime = state.startedAt = performance.now();
     state.running = true;
     state.raf = requestAnimationFrame(tick);
   }
@@ -121,7 +142,7 @@
   }
 
   function snapshot() {
-    return { running: state.running, speed: state.speed, direction: state.direction };
+    return { running: state.running, speed: state.speed, direction: state.direction, ease: state.ease };
   }
 
   chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
@@ -130,6 +151,7 @@
       case "configure":
         if (typeof msg.speed === "number") state.speed = msg.speed;
         if (msg.direction === 1 || msg.direction === -1) state.direction = msg.direction;
+        if (typeof msg.ease === "boolean") state.ease = msg.ease;
         break;
       case "start": start(msg.durationMs); break;
       case "stop": if (state.running) stop(); break;
