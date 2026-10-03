@@ -22,6 +22,46 @@ O tema claro é uma derivação com contraste medido (texto ≥ 4,5:1; controles
 - `ui/icons.svg`: conjunto único de ícones (sem emojis)
 - `fonts/`: Inter e JetBrains Mono locais (a CSP do MV3 não permite fontes remotas)
 
+## Compatibilidade com navegadores
+
+Auditoria de 2026-10-03. A coluna **Como** diz o que foi realmente verificado.
+
+| Navegador | Situação | Como |
+|---|---|---|
+| Chrome / Chromium | Funciona | Testado (Chromium, suítes `tests/`) |
+| Edge | Esperado | Mesma base; não testado |
+| Brave | Esperado | Mesma base; não testado |
+| Opera / Opera GX | Esperado nas versões atuais | Não testado. Exige Chromium 116 ou superior (`minimum_chrome_version`); o Opera 116 usa Chromium 131 |
+| Vivaldi | Pode falhar no popup | Não testado. Veja "Vivaldi" abaixo |
+| Firefox | **Não instala** | Testado no Firefox 157: `background.service_worker is currently disabled` |
+| Safari | **Inviável** com esta arquitetura | Documentação e dados da MDN; não testado |
+
+### Vivaldi
+Relatos no fórum oficial descrevem popups de extensão quebrados quando o **zoom da interface não é 100%**
+(o popup vira um quadradinho ou some) e quando o ícone da extensão **não está na barra de ferramentas**.
+O Vivaldi também tem bugs conhecidos na API `sidePanel` (usada pelo Claude in Chrome). Se o popup não abrir:
+confira o zoom da interface e fixe o ícone na barra.
+
+### Por que não Firefox / Safari
+| Recurso usado pela gravação | Chrome/Edge/Opera | Firefox | Safari |
+|---|---|---|---|
+| `offscreen` (documento que segura a gravação) | sim | não | não |
+| `background.service_worker` | sim | não (usa `background.scripts`) | sim |
+| `downloads` | sim | sim | **não** |
+| `showDirectoryPicker` (escolher qualquer pasta) | sim | **não** | **não** |
+| MP4 H.264 no `MediaRecorder` | depende do codec do sistema | medido: **não** (só WebM VP8) | sim (documentado) |
+
+Um port para Firefox seria viável para o **scroll**; a **gravação** precisaria de redesenho
+(WebM, só dentro de Downloads, sem documento offscreen). Safari exigiria macOS e Xcode e perderia
+gravação e escolha de pasta.
+
+Fontes: [MDN Browser Compat Data](https://github.com/mdn/browser-compat-data),
+[Chrome: API offscreen](https://developer.chrome.com/docs/extensions/reference/api/offscreen),
+[Vivaldi: bugs de popup](https://forum.vivaldi.net/topic/116215/extension-popup-bugs),
+[Vivaldi: popups não abrem](https://forum.vivaldi.net/topic/107999/extension-pop-ups-not-working),
+[Opera 116](https://blogs.opera.com/desktop/2025/01/opera-116/),
+[Firefox: MediaRecorder e video/mp4](https://bugzilla.mozilla.org/show_bug.cgi?id=1631143).
+
 ## Testes
 `node tests/e2e.mjs` — tema e scroll.
 `node tests/e2e-ui.mjs` — UI/UX: contraste real nos dois temas, foco, nomes acessíveis, altura ≤ 600 px, movimento reduzido, teclado.
