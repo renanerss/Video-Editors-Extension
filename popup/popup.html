@@ -29,16 +29,16 @@
 
   <details class="opts" open>
     <summary>Opções de gravação</summary>
-    <label class="field">Duração (segundos)
-      <input id="duration" type="number" min="3" step="1" inputmode="numeric" placeholder="até o fim da página">
+    <label class="field" title="Vazio = até o fim da página. Com valor, grava e rola por esse tempo, ou até o fim da página, o que vier primeiro.">Duração (segundos)
+      <input id="duration" type="number" min="3" step="1" inputmode="numeric" placeholder="vazio = até o fim da página">
     </label>
-    <small title="Com valor, grava e rola por esse tempo, ou até o fim da página, o que vier primeiro.">Vazio = até o fim da página.</small>
     <div class="field">Salvar em
       <div class="folder">
         <span id="folderLabel"></span>
         <button id="folderBtn" type="button" title="Escolher a pasta de destino">📁 Pasta…</button>
       </div>
     </div>
+    <label class="check"><input id="top" type="checkbox"> Começar do início da página</label>
     <label class="check"><input id="ask" type="checkbox"> Perguntar sempre onde salvar</label>
   </details>
 

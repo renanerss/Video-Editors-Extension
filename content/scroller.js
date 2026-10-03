@@ -108,6 +108,13 @@
     });
   }
 
+  // Leva a página ao topo e espera 2 frames para ela ser pintada ali antes de a contagem/gravação.
+  function jumpToTop() {
+    if (state.running) stop();
+    scrollToY(findTarget(), 0);
+    return new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+  }
+
   function snapshot() {
     return { running: state.running, speed: state.speed, direction: state.direction };
   }
@@ -121,6 +128,9 @@
         break;
       case "start": start(msg.durationMs); break;
       case "stop": if (state.running) stop(); break;
+      case "scrollToTop":
+        jumpToTop().then(() => sendResponse(snapshot()));
+        return true; // resposta assíncrona
       case "countdown":
         countdown(msg.seconds).then(() => sendResponse(snapshot()));
         return true; // resposta assíncrona

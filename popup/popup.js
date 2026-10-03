@@ -3,7 +3,7 @@ const els = {
   theme: $("theme"), play: $("play"), speed: $("speed"), speedOut: $("speedOut"),
   direction: $("direction"), status: $("status"),
   record: $("record"), recHint: $("recHint"),
-  duration: $("duration"), folderLabel: $("folderLabel"), folderBtn: $("folderBtn"), ask: $("ask"),
+  duration: $("duration"), folderLabel: $("folderLabel"), folderBtn: $("folderBtn"), ask: $("ask"), top: $("top"),
   unsaved: $("unsaved"), retry: $("retry"), discard: $("discard"),
 };
 const settings = { speed: 120, direction: 1 };
@@ -110,11 +110,12 @@ function setRec(next) {
 }
 
 /* ---------- Opções de gravação (salvas em chrome.storage.local) ---------- */
-let recSettings = { durationSec: null, askEveryTime: false, folderName: null };
+let recSettings = { durationSec: null, askEveryTime: false, folderName: null, startAtTop: false };
 
 function renderOptions() {
   els.duration.value = recSettings.durationSec ?? "";
   els.ask.checked = recSettings.askEveryTime;
+  els.top.checked = Boolean(recSettings.startAtTop);
   els.folderLabel.textContent = recSettings.askEveryTime
     ? "Pergunta toda vez"
     : recSettings.folderName ?? "Downloads (padrão)";
@@ -127,6 +128,10 @@ const saveOptions = () => chrome.storage.local.set({ recSettings });
 els.duration.addEventListener("change", () => {
   const n = Number(els.duration.value);
   recSettings.durationSec = els.duration.value === "" || !Number.isFinite(n) ? null : Math.round(n);
+  saveOptions();
+});
+els.top.addEventListener("change", () => {
+  recSettings.startAtTop = els.top.checked;
   saveOptions();
 });
 els.ask.addEventListener("change", () => {
@@ -166,13 +171,13 @@ function renderRecording() {
   const unsaved = rec.phase === "unsaved";
   els.unsaved.hidden = !unsaved;
   document.querySelector(".opts").hidden = busy; // desabilitadas de qualquer jeito; liberam espaço (popup do Chrome tem teto de 600 px)
-  els.duration.disabled = els.ask.disabled = els.folderBtn.disabled = busy;
+  els.duration.disabled = els.ask.disabled = els.top.disabled = els.folderBtn.disabled = busy;
   const recording = rec.phase === "recording";
   els.record.textContent = recording ? "⏹ Parar e salvar" : "⏺ Gravar e rolar";
   els.record.classList.toggle("stop", recording);
   els.record.disabled = busy && !recording;
   els.play.disabled = busy;
-  els.recHint.hidden = busy;
+  els.recHint.hidden = busy || Boolean(notice); // a mensagem de status ocupa o lugar da dica
   els.status.classList.toggle("error", !busy && Boolean(notice?.error));
   if (unsaved) {
     els.status.classList.add("error");
@@ -194,12 +199,16 @@ els.record.addEventListener("click", async () => {
   }
   const durationSec = recSettings.durationSec ?? 0;
   if (durationSec !== 0 && durationSec < 3) return showError("A duração mínima é de 3 segundos.");
+  if (recSettings.startAtTop && settings.direction === -1) {
+    return showError("Com “Começar do início” e direção “Subir”, o scroll termina na hora. Mude para “Descer” ou desmarque a opção.");
+  }
   if (!(await folderReady())) return;
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   if (!tab?.id) return;
   await chrome.runtime.sendMessage({
     target: "background", type: "record-start",
     tabId: tab.id, speed: settings.speed, direction: settings.direction, durationSec,
+    startAtTop: Boolean(recSettings.startAtTop),
   });
   window.close(); // o seletor de tela do Chrome abre por cima; o popup não é mais necessário
 });

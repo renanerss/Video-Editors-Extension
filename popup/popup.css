@@ -54,4 +54,6 @@ input[type="range"] { width: 100%; accent-color: var(--accent); }
 [hidden] { display: none !important; }
 
 .opts .field + .field { margin-top: 4px; }
-body { gap: 12px; }
+body { gap: 10px; }
+.opts { gap: 6px; }
+.presets button { padding: 4px; }
