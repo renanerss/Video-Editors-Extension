@@ -10,7 +10,7 @@ import { execFileSync } from "node:child_process";
 export async function launch() {
   const src = path.resolve(import.meta.dirname, "..");
   const ext = fs.mkdtempSync(path.join(os.tmpdir(), "ext-"));
-  for (const d of ["popup", "content", "icons", "background", "offscreen", "lib", "options"]) {
+  for (const d of ["popup", "content", "icons", "background", "offscreen", "lib", "options", "ui", "fonts"]) {
     fs.cpSync(path.join(src, d), path.join(ext, d), { recursive: true });
   }
   const manifest = JSON.parse(fs.readFileSync(path.join(src, "manifest.json")));

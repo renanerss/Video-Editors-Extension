@@ -126,6 +126,8 @@ const record = (popup) => popup.click("#record");
   await record(popup);
   await waitPhase(popup, "unsaved", 40000);
   await popup.click("#discard");
+  check("descartar pede confirmação (2º clique)", (await popup.textContent("#discardText")).includes("Confirmar"));
+  await popup.click("#discard");
   await waitPhase(popup, "idle");
   check("descartar apaga o temporário", (await opfsKeys(popup)).every((k) => !k.startsWith("rec-")), JSON.stringify(await opfsKeys(popup)));
   await sw.evaluate(() => { chrome.downloads.download = globalThis.__origDownload; }); // fim dos stubs
@@ -177,7 +179,7 @@ const scrollY = (target) => target.evaluate(() => scrollY);
   await jump(target, 5000);
   await setOptions(popup, { durationSec: 5, startAtTop: true });
   await reopen(popup);
-  await popup.click("#direction"); // vira "Subir"
+  await popup.click("#dirUp");
   await popup.click("#record");
   await popup.waitForTimeout(500);
   check("topo + Subir mostra aviso", (await popup.textContent("#status")).includes("Subir"));

@@ -92,9 +92,14 @@
       const host = document.createElement("div");
       host.style.cssText = "all:initial;position:fixed;inset:0;z-index:2147483647;pointer-events:none;display:grid;place-items:center";
       const root = host.attachShadow({ mode: "closed" });
-      root.innerHTML = `<style>div{width:240px;height:240px;border-radius:50%;display:grid;place-items:center;
-        background:rgba(0,0,0,.6);color:#fff;font:700 140px system-ui,sans-serif}</style><div></div>`;
-      const label = root.querySelector("div");
+      root.innerHTML = `<style>
+        .box{display:flex;flex-direction:column;align-items:center;gap:14px;font-family:ui-monospace,"JetBrains Mono",monospace}
+        .ring{width:176px;height:176px;border-radius:50%;display:grid;place-items:center;background:rgba(3,3,3,.86);
+          border:1px solid rgba(0,255,163,.55);box-shadow:0 0 40px rgba(0,255,163,.25);
+          color:#00ffa3;font-size:96px;font-weight:600;line-height:1}
+        .cap{padding:6px 12px;background:rgba(3,3,3,.86);color:#e8e8e8;font-size:11px;letter-spacing:.14em;text-transform:uppercase}
+      </style><div class="box" role="status"><div class="ring"></div><div class="cap">Gravação começa em instantes</div></div>`;
+      const label = root.querySelector(".ring");
       let n = seconds;
       label.textContent = n;
       document.documentElement.append(host);

@@ -8,7 +8,7 @@ import fs from "node:fs";
 const src = path.resolve(import.meta.dirname, "..");
 // Cópia de teste: activeTab só vale com clique real no ícone, então liberamos o host só aqui.
 const ext = fs.mkdtempSync(path.join(os.tmpdir(), "ext-"));
-for (const d of ["popup", "content", "icons", "background", "offscreen", "lib", "options"]) fs.cpSync(path.join(src, d), path.join(ext, d), { recursive: true });
+for (const d of ["popup", "content", "icons", "background", "offscreen", "lib", "options", "ui", "fonts"]) fs.cpSync(path.join(src, d), path.join(ext, d), { recursive: true });
 const manifest = JSON.parse(fs.readFileSync(path.join(src, "manifest.json")));
 manifest.host_permissions = ["<all_urls>"];
 fs.writeFileSync(path.join(ext, "manifest.json"), JSON.stringify(manifest));
@@ -78,14 +78,14 @@ await target.waitForTimeout(400);
 check("pausar para a página", (await target.evaluate(() => scrollY)) === y);
 check("slider parado não inicia o scroll", (await setSlider(300), await target.waitForTimeout(400), (await target.evaluate(() => scrollY)) === y));
 
-await popup.click("#direction");
+await popup.click("#dirUp");
 await popup.click("#play");
 await target.waitForTimeout(500);
 check("direção 'subir' funciona", (await target.evaluate(() => scrollY)) < y);
 await popup.click("#play");
 
 // Fim da página: para sozinho e o botão volta a "Iniciar".
-await popup.click("#direction"); // descer
+await popup.click("#dirDown"); // descer
 await target.evaluate(() => scrollTo({ top: document.scrollingElement.scrollHeight - innerHeight - 100, behavior: "instant" }));
 await setSlider(1000);
 await popup.click('.presets button[data-speed="400"]');

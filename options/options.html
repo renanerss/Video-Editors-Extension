@@ -2,30 +2,46 @@
 <html lang="pt-BR" data-theme="dark">
 <head>
   <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Scroll Recorder — Pasta de destino</title>
-  <link rel="stylesheet" href="../popup/popup.css">
+  <link rel="stylesheet" href="../ui/theme.css">
   <style>
-    body { width: auto; max-width: 520px; margin: 40px auto; padding: 24px; }
-    h1 { font-size: 18px; }
-    .row { display: flex; gap: 8px; flex-wrap: wrap; }
-    #current { font-weight: 600; word-break: break-all; }
-    p { margin: 0; color: var(--muted); }
+    body { display: grid; place-items: start center; min-height: 100vh; padding: 48px 16px; }
+    main { width: 100%; max-width: 520px; display: flex; flex-direction: column; gap: 24px; }
+    .brand { display: flex; align-items: center; gap: 10px; color: var(--accent-ink); }
+    .brand svg { width: 22px; height: 22px; }
+    h1 { margin: 0; font: 600 22px/1.2 "Inter", sans-serif; letter-spacing: -.02em; }
+    .lead { margin: 0; color: var(--sub); font-size: 14px; line-height: 1.6; }
+    .card { display: flex; flex-direction: column; gap: 10px; padding: 18px; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; }
+    #current { font: 500 15px/1.4 "JetBrains Mono", ui-monospace, monospace; word-break: break-all; }
+    .perm { display: flex; align-items: center; gap: 8px; min-height: 20px; font-size: 13px; color: var(--sub); }
+    .perm[data-state="ok"] { color: var(--accent-ink); }
+    .perm[data-state="warn"] { color: var(--danger); }
+    .actions { display: flex; gap: 10px; flex-wrap: wrap; }
   </style>
 </head>
 <body>
-  <h1>Pasta de destino dos vídeos</h1>
-  <p>Escolha qualquer pasta do computador. Se nenhuma for escolhida, os vídeos vão para a pasta Downloads do Chrome.</p>
-  <section>
-    <span>Pasta atual</span>
-    <span id="current"></span>
-    <span id="perm"></span>
-  </section>
-  <div class="row">
-    <button id="choose" class="primary" type="button">📁 Escolher pasta…</button>
-    <button id="authorize" type="button">🔓 Autorizar de novo</button>
-    <button id="clear" type="button">✕ Remover (usar Downloads)</button>
-  </div>
-  <p id="msg" role="status"></p>
+  <main>
+    <div>
+      <div class="brand eyebrow"><svg class="icon" aria-hidden="true"><use href="../ui/icons.svg#logo"/></svg>Scroll Recorder</div>
+      <h1>Pasta de destino dos vídeos</h1>
+    </div>
+    <p class="lead">Escolha qualquer pasta do computador. Se nenhuma for escolhida, os vídeos vão para a pasta Downloads do Chrome.</p>
+
+    <section class="card" aria-label="Pasta atual">
+      <span class="eyebrow">Pasta atual</span>
+      <span id="current"></span>
+      <span id="perm" class="perm" data-state="none"><svg class="icon" aria-hidden="true"><use id="permIcon" href="../ui/icons.svg#dot"/></svg><span id="permText"></span></span>
+    </section>
+
+    <div class="actions">
+      <button id="choose" class="btn btn-primary" type="button"><svg class="icon" aria-hidden="true"><use href="../ui/icons.svg#folder"/></svg>Escolher pasta…</button>
+      <button id="authorize" class="btn" type="button"><svg class="icon" aria-hidden="true"><use href="../ui/icons.svg#unlock"/></svg>Autorizar de novo</button>
+      <button id="clear" class="btn" type="button"><svg class="icon" aria-hidden="true"><use href="../ui/icons.svg#x"/></svg>Usar Downloads</button>
+    </div>
+
+    <p id="msg" class="status" role="status" data-state="idle"><svg class="icon" aria-hidden="true"><use id="msgIcon" href="../ui/icons.svg#dot"/></svg><span id="msgText"></span></p>
+  </main>
   <script src="../lib/folder-store.js"></script>
   <script src="options.js"></script>
 </body>

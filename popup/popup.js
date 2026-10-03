@@ -1,20 +1,28 @@
 const $ = (id) => document.getElementById(id);
 const els = {
-  theme: $("theme"), play: $("play"), speed: $("speed"), speedOut: $("speedOut"),
-  direction: $("direction"), status: $("status"),
-  record: $("record"), recHint: $("recHint"),
-  duration: $("duration"), folderLabel: $("folderLabel"), folderBtn: $("folderBtn"), ask: $("ask"), top: $("top"),
-  unsaved: $("unsaved"), retry: $("retry"), discard: $("discard"),
+  theme: $("theme"), themeIcon: $("themeIcon"),
+  play: $("play"), playIcon: $("playIcon"), playText: $("playText"),
+  speed: $("speed"), speedVal: $("speedVal"), dirDown: $("dirDown"), dirUp: $("dirUp"),
+  status: $("status"), statusIcon: $("statusIcon"), statusText: $("statusText"),
+  record: $("record"), recIcon: $("recIcon"), recText: $("recText"),
+  opts: $("opts"), duration: $("duration"), durHint: $("durHint"),
+  folderLabel: $("folderLabel"), folderBtn: $("folderBtn"), ask: $("ask"), top: $("top"),
+  unsaved: $("unsaved"), retry: $("retry"), discard: $("discard"), discardText: $("discardText"),
 };
 const settings = { speed: 120, direction: 1 };
 let running = false;
 let tabId = null;
 let injected = false; // evita reinjetar o script a cada movimento do slider
 
+const setIcon = (use, name) => use.setAttribute("href", `../ui/icons.svg#${name}`);
+
 /* ---------- Tema ---------- */
 function applyTheme(theme) {
   document.documentElement.dataset.theme = theme;
-  els.theme.textContent = theme === "dark" ? "☀️" : "🌙"; // mostra o tema para o qual vai trocar
+  const next = theme === "dark" ? "claro" : "escuro";
+  setIcon(els.themeIcon, theme === "dark" ? "sun" : "moon"); // mostra o ícone do tema para o qual vai trocar
+  els.theme.setAttribute("aria-label", `Mudar para o tema ${next}`);
+  els.theme.title = `Tema ${next}`;
 }
 async function initTheme() {
   const { theme } = await chrome.storage.local.get("theme");
@@ -40,20 +48,24 @@ async function ensureScroller() {
 const send = (msg) => chrome.tabs.sendMessage(tabId, { target: "scroller", ...msg });
 
 function render() {
-  els.play.textContent = running ? "⏸ Pausar scroll" : "▶ Iniciar scroll";
+  setIcon(els.playIcon, running ? "pause" : "play");
+  els.playText.textContent = running ? "Pausar scroll" : "Iniciar scroll";
   els.speed.value = settings.speed;
-  els.speedOut.textContent = settings.speed;
-  els.direction.textContent = settings.direction === 1 ? "⬇ Descer" : "⬆ Subir";
+  els.speedVal.textContent = settings.speed;
+  els.speed.setAttribute("aria-valuetext", `${settings.speed} pixels por segundo`);
+  const min = Number(els.speed.min), max = Number(els.speed.max);
+  els.speed.style.setProperty("--pct", `${((settings.speed - min) / (max - min)) * 100}%`);
+  (settings.direction === 1 ? els.dirDown : els.dirUp).checked = true;
 }
 
 // Garante o script na página e envia as configurações atuais. Retorna o estado, ou undefined se a página não permite.
 async function applySettings() {
   try {
     await ensureScroller();
-    els.status.textContent = "";
+    if (notice?.error) { notice = null; renderStatus(); }
     return await send({ type: "configure", ...settings });
   } catch {
-    els.status.textContent = "Não é possível controlar esta página (ex.: chrome:// ou Chrome Web Store).";
+    showError("Não é possível controlar esta página (ex.: chrome:// ou Chrome Web Store).");
   }
 }
 
@@ -83,22 +95,23 @@ document.querySelectorAll(".presets button").forEach((b) =>
     setRunning(true);
   })
 );
-els.direction.addEventListener("click", () => {
-  settings.direction *= -1;
-  render();
-  if (running) applySettings();
-});
+for (const radio of [els.dirDown, els.dirUp]) {
+  radio.addEventListener("change", () => {
+    settings.direction = Number(radio.value);
+    if (running) applySettings();
+  });
+}
 chrome.runtime.onMessage.addListener((msg) => {
   if (msg?.type === "scroll-stopped") { running = false; render(); }
 });
 
 /* ---------- Gravação ---------- */
 let rec = { phase: "idle" };
-let notice = null; // { error } ou { saved }: fica na tela até iniciar outra gravação
+let notice = null; // { error } ou { saved, note }: fica na tela até iniciar outra gravação
 const PHASE_TEXT = {
   picking: "Escolha o que gravar na janela do Chrome…",
-  countdown: "Prepare-se… a gravação já vai começar.",
-  recording: "● Gravando. O vídeo é salvo quando o scroll chegar ao fim.",
+  countdown: "Prepare-se: a gravação já vai começar.",
+  recording: "Gravando. O vídeo é salvo quando o scroll chegar ao fim.",
   saving: "Salvando o vídeo…",
 };
 
@@ -116,15 +129,29 @@ function renderOptions() {
   els.duration.value = recSettings.durationSec ?? "";
   els.ask.checked = recSettings.askEveryTime;
   els.top.checked = Boolean(recSettings.startAtTop);
-  els.folderLabel.textContent = recSettings.askEveryTime
-    ? "Pergunta toda vez"
-    : recSettings.folderName ?? "Downloads (padrão)";
+  const label = recSettings.askEveryTime ? "Pergunta toda vez" : recSettings.folderName ?? "Downloads";
+  els.folderLabel.textContent = label;
+  els.folderLabel.title = label;
   els.folderBtn.title = recSettings.askEveryTime
-    ? "A pasta escolhida é ignorada enquanto 'Perguntar sempre' estiver ligado"
+    ? "A pasta escolhida é ignorada enquanto “Perguntar sempre” estiver ligado"
     : "Escolher a pasta de destino";
+  validateDuration();
 }
 const saveOptions = () => chrome.storage.local.set({ recSettings });
 
+// Validação na hora (não só ao clicar em gravar).
+function durationInvalid() {
+  const raw = els.duration.value;
+  if (raw === "") return false;
+  const n = Number(raw);
+  return !Number.isFinite(n) || n < 3;
+}
+function validateDuration() {
+  const bad = durationInvalid();
+  els.duration.setAttribute("aria-invalid", String(bad));
+  els.durHint.hidden = !bad;
+}
+els.duration.addEventListener("input", validateDuration);
 els.duration.addEventListener("change", () => {
   const n = Number(els.duration.value);
   recSettings.durationSec = els.duration.value === "" || !Number.isFinite(n) ? null : Math.round(n);
@@ -139,6 +166,7 @@ els.ask.addEventListener("change", () => {
   saveOptions();
   renderOptions();
 });
+els.opts.addEventListener("toggle", () => chrome.storage.local.set({ optsOpen: els.opts.open })); // lembra aberto/fechado
 // A escolha da pasta fica numa aba de opções: o popup fecha quando um diálogo nativo abre.
 els.folderBtn.addEventListener("click", () => chrome.runtime.openOptionsPage());
 chrome.storage.onChanged.addListener((changes, area) => {
@@ -150,7 +178,7 @@ chrome.storage.onChanged.addListener((changes, area) => {
 
 function showError(message) {
   notice = { error: message };
-  renderRecording();
+  renderStatus();
 }
 
 // Se a pasta escolhida pede autorização, tenta aqui (dentro do clique) ou manda para as opções.
@@ -166,30 +194,38 @@ async function folderReady() {
   return false;
 }
 
+// Uma única linha de status: ícone de forma diferente por estado (cor nunca é o único sinal).
+function statusView() {
+  if (rec.phase === "unsaved") return { state: "error", icon: "alert", text: rec.error ?? "O vídeo ainda não foi salvo." };
+  if (rec.phase === "recording") {
+    const webm = rec.ext === "webm" ? " Seu Chrome não suporta MP4 H.264, então salvo em WebM." : "";
+    return { state: "recording", icon: "dot", text: PHASE_TEXT.recording + webm };
+  }
+  if (rec.phase !== "idle") return { state: "busy", icon: "dot", text: PHASE_TEXT[rec.phase] ?? "" };
+  if (notice?.error) return { state: "error", icon: "alert", text: notice.error };
+  if (notice?.saved) return { state: "success", icon: "check", text: `Salvo: ${notice.saved}` + (notice.note ? ` (${notice.note})` : "") };
+  return { state: "idle", icon: "dot", text: "Pronto. Contagem de 3 s, rola e salva o vídeo." };
+}
+function renderStatus() {
+  const v = statusView();
+  els.status.dataset.state = v.state;
+  setIcon(els.statusIcon, v.icon);
+  els.statusText.textContent = v.text;
+}
+
 function renderRecording() {
   const busy = rec.phase !== "idle";
-  const unsaved = rec.phase === "unsaved";
-  els.unsaved.hidden = !unsaved;
-  document.querySelector(".opts").hidden = busy; // desabilitadas de qualquer jeito; liberam espaço (popup do Chrome tem teto de 600 px)
-  els.duration.disabled = els.ask.disabled = els.top.disabled = els.folderBtn.disabled = busy;
   const recording = rec.phase === "recording";
-  els.record.textContent = recording ? "⏹ Parar e salvar" : "⏺ Gravar e rolar";
-  els.record.classList.toggle("stop", recording);
+  els.unsaved.hidden = rec.phase !== "unsaved";
+  els.opts.hidden = busy; // desabilitadas de qualquer jeito; liberam espaço (popup do Chrome tem teto de 600 px)
+  els.duration.disabled = els.ask.disabled = els.top.disabled = els.folderBtn.disabled = busy;
+  setIcon(els.recIcon, recording ? "stop" : "rec");
+  els.recText.textContent = recording ? "Parar e salvar" : "Gravar e rolar";
+  els.record.classList.toggle("btn-primary", !recording);
+  els.record.classList.toggle("btn-danger", recording);
   els.record.disabled = busy && !recording;
   els.play.disabled = busy;
-  els.recHint.hidden = busy || Boolean(notice); // a mensagem de status ocupa o lugar da dica
-  els.status.classList.toggle("error", !busy && Boolean(notice?.error));
-  if (unsaved) {
-    els.status.classList.add("error");
-    els.status.textContent = rec.error ?? "O vídeo ainda não foi salvo.";
-  } else if (!busy && notice?.error) els.status.textContent = notice.error;
-  else if (!busy && notice?.saved) {
-    els.status.textContent = `✓ Salvo: ${notice.saved}` + (notice.note ? ` (${notice.note})` : "");
-  }
-  else if (busy) {
-    const webm = rec.ext === "webm" ? " (Seu Chrome não suporta MP4 H.264: salvando em WebM.)" : "";
-    els.status.textContent = (PHASE_TEXT[rec.phase] ?? "") + (recording ? webm : "");
-  } else if (!els.status.textContent.startsWith("Não é possível")) els.status.textContent = "";
+  renderStatus();
 }
 
 els.record.addEventListener("click", async () => {
@@ -198,7 +234,10 @@ els.record.addEventListener("click", async () => {
     return;
   }
   const durationSec = recSettings.durationSec ?? 0;
-  if (durationSec !== 0 && durationSec < 3) return showError("A duração mínima é de 3 segundos.");
+  if (durationInvalid() || (durationSec !== 0 && durationSec < 3)) {
+    els.duration.focus();
+    return showError("A duração mínima é de 3 segundos.");
+  }
   if (recSettings.startAtTop && settings.direction === -1) {
     return showError("Com “Começar do início” e direção “Subir”, o scroll termina na hora. Mude para “Descer” ou desmarque a opção.");
   }
@@ -214,10 +253,21 @@ els.record.addEventListener("click", async () => {
 });
 
 els.retry.addEventListener("click", () => chrome.runtime.sendMessage({ target: "background", type: "save-retry" }));
+// Descartar: confirmação em dois cliques no próprio botão (o confirm() nativo é feio e pode fechar o popup).
+let discardTimer = null;
+function disarmDiscard() {
+  clearTimeout(discardTimer);
+  discardTimer = null;
+  els.discardText.textContent = "Descartar";
+}
 els.discard.addEventListener("click", () => {
-  if (confirm("Descartar o vídeo gravado? Isso não pode ser desfeito.")) {
-    chrome.runtime.sendMessage({ target: "background", type: "save-discard" });
+  if (discardTimer === null) {
+    els.discardText.textContent = "Confirmar?";
+    discardTimer = setTimeout(disarmDiscard, 4000);
+    return;
   }
+  disarmDiscard();
+  chrome.runtime.sendMessage({ target: "background", type: "save-discard" });
 });
 
 chrome.storage.onChanged.addListener((changes, area) => {
@@ -237,7 +287,9 @@ chrome.storage.onChanged.addListener((changes, area) => {
     running = res.running;
   } catch { /* script ainda não injetado: usa os padrões */ }
   render();
-  recSettings = { ...recSettings, ...(await chrome.storage.local.get("recSettings")).recSettings };
+  const stored = await chrome.storage.local.get(["recSettings", "optsOpen"]);
+  if (stored.optsOpen === false) els.opts.open = false;
+  recSettings = { ...recSettings, ...stored.recSettings };
   renderOptions();
   setRec((await chrome.storage.session.get("rec")).rec);
   if (rec.error || rec.saved) chrome.runtime.sendMessage({ target: "background", type: "clear-notice" }); // mostra uma vez só
