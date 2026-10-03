@@ -10,6 +10,7 @@
     pos: 0,            // posição em ponto flutuante (o navegador arredonda scrollTop)
     lastSet: 0,
     lastTime: 0,
+    stopAt: null,      // instante (ms) em que o scroll para sozinho; usado pela gravação com duração
     raf: 0,
   };
 
@@ -46,6 +47,7 @@
     // dt nunca negativo (o timestamp do rAF pode ser anterior ao do start) nem gigante (aba em segundo plano)
     const dt = Math.min(Math.max((now - state.lastTime) / 1000, 0), 0.1);
     state.lastTime = now;
+    if (state.stopAt !== null && now >= state.stopAt) { stop(); return; }
 
     // Se o usuário rolou manualmente, ressincroniza a partir de onde ele parou.
     if (Math.abs(el.scrollTop - state.lastSet) > 2) state.pos = el.scrollTop;
@@ -66,8 +68,9 @@
     state.raf = requestAnimationFrame(tick);
   }
 
-  function start() {
+  function start(durationMs) {
     if (state.running) return;
+    state.stopAt = typeof durationMs === "number" ? performance.now() + durationMs : null;
     state.target = findTarget();
     state.pos = state.target.scrollTop;
     state.lastSet = state.pos;
@@ -116,7 +119,7 @@
         if (typeof msg.speed === "number") state.speed = msg.speed;
         if (msg.direction === 1 || msg.direction === -1) state.direction = msg.direction;
         break;
-      case "start": start(); break;
+      case "start": start(msg.durationMs); break;
       case "stop": if (state.running) stop(); break;
       case "countdown":
         countdown(msg.seconds).then(() => sendResponse(snapshot()));

@@ -27,12 +27,33 @@
     <button id="direction" type="button">⬇ Descer</button>
   </section>
 
+  <details class="opts" open>
+    <summary>Opções de gravação</summary>
+    <label class="field">Duração (segundos)
+      <input id="duration" type="number" min="3" step="1" inputmode="numeric" placeholder="até o fim da página">
+    </label>
+    <small title="Com valor, grava e rola por esse tempo, ou até o fim da página, o que vier primeiro.">Vazio = até o fim da página.</small>
+    <div class="field">Salvar em
+      <div class="folder">
+        <span id="folderLabel"></span>
+        <button id="folderBtn" type="button" title="Escolher a pasta de destino">📁 Pasta…</button>
+      </div>
+    </div>
+    <label class="check"><input id="ask" type="checkbox"> Perguntar sempre onde salvar</label>
+  </details>
+
   <section class="record">
     <button id="record" class="rec" type="button">⏺ Gravar e rolar</button>
-    <small id="recHint">Escolha a tela, contagem de 3s, rola até o fim e baixa o vídeo.</small>
+    <small id="recHint">Contagem de 3s, rola e salva o vídeo.</small>
+  </section>
+
+  <section id="unsaved" class="row" hidden>
+    <button id="retry" class="primary" type="button">💾 Salvar de novo</button>
+    <button id="discard" type="button">🗑 Descartar</button>
   </section>
 
   <p id="status" role="status"></p>
+  <script src="../lib/folder-store.js"></script>
   <script src="popup.js"></script>
 </body>
 </html>

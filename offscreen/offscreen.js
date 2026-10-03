@@ -111,12 +111,45 @@ async function discard(name) {
   fileName = null; fileHandle = null;
 }
 
+// Copia a gravação (do OPFS) para a pasta escolhida pelo usuário, sem passar pela memória.
+async function uniqueName(dir, filename) {
+  const dot = filename.lastIndexOf(".");
+  const [base, ext] = dot < 0 ? [filename, ""] : [filename.slice(0, dot), filename.slice(dot)];
+  for (let i = 1; ; i++) {
+    const candidate = i === 1 ? filename : `${base} (${i})${ext}`;
+    try { await dir.getFileHandle(candidate); } catch (e) {
+      if (e.name === "NotFoundError") return candidate; // não existe: pode usar
+      throw e;
+    }
+  }
+}
+
+async function saveToFolder(name, filename) {
+  let partial = null, dir = null;
+  try {
+    dir = await FolderStore.load();
+    if (!dir) throw new Error("A pasta escolhida não foi encontrada.");
+    if ((await dir.queryPermission({ mode: "readwrite" })) !== "granted") {
+      throw new Error("A pasta precisa ser autorizada de novo (abra as opções da extensão).");
+    }
+    const source = await (await (await navigator.storage.getDirectory()).getFileHandle(name)).getFile();
+    partial = await uniqueName(dir, filename);
+    const out = await (await dir.getFileHandle(partial, { create: true })).createWritable();
+    await source.stream().pipeTo(out); // fecha o arquivo ao terminar
+    return { ok: true, filename: partial };
+  } catch (e) {
+    if (partial && dir) { try { await dir.removeEntry(partial); } catch {} }
+    return { ok: false, error: e.message };
+  }
+}
+
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg?.target !== "offscreen") return;
   switch (msg.type) {
     case "acquire": acquire(); sendResponse({ ok: true }); return; // resposta real vem por evento
     case "start": start().then(sendResponse); return true;
     case "stop": stop().then(sendResponse); return true;
+    case "save-to-folder": saveToFolder(msg.name, msg.filename).then(sendResponse); return true;
     case "discard": discard(msg.name).then(() => sendResponse({ ok: true })); return true;
   }
 });

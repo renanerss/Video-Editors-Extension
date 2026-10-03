@@ -16,7 +16,7 @@ let finishing = false;
 /* ---------- Estado (visível ao popup via storage.onChanged) ---------- */
 const BADGES = {
   idle: ["", "#000000"], picking: ["…", "#6b7280"], countdown: ["3", "#d97706"],
-  recording: ["REC", "#dc2626"], saving: ["…", "#4f46e5"],
+  recording: ["REC", "#dc2626"], saving: ["…", "#4f46e5"], unsaved: ["!", "#dc2626"],
 };
 const getRec = async () => (await chrome.storage.session.get("rec")).rec ?? { phase: "idle" };
 async function setRec(rec) {
@@ -48,9 +48,9 @@ async function abort(message) {
 }
 
 /* ---------- Fluxo ---------- */
-async function startRecording({ tabId, speed, direction }) {
+async function startRecording({ tabId, speed, direction, durationSec }) {
   if ((await getRec()).phase !== "idle") return { ok: false };
-  await setRec({ phase: "picking", tabId, speed, direction });
+  await setRec({ phase: "picking", tabId, speed, direction, durationSec: durationSec || 0 });
   try {
     await ensureOffscreen();
     await toOffscreen({ type: "acquire" });
@@ -76,7 +76,9 @@ async function onAcquired(info) {
   }
   await setRec({ ...rec, phase: "recording", startedAt: Date.now() });
   await sleep(PRE_ROLL_MS);
-  tabSend(rec.tabId, { type: "start" }).catch((e) => abort(e.message));
+  // Com duração, o vídeo todo dura ~N s: o scroll cobre N menos as margens (antes e depois).
+  const durationMs = rec.durationSec ? Math.max(rec.durationSec * 1000 - PRE_ROLL_MS - POST_ROLL_MS, 300) : undefined;
+  tabSend(rec.tabId, { type: "start", durationMs }).catch((e) => abort(e.message));
 }
 
 async function finish(delayMs) {
@@ -89,15 +91,48 @@ async function finish(delayMs) {
     await sleep(delayMs);
     const r = await toOffscreen({ type: "stop" });
     if (!r?.ok) throw new Error(r?.error ?? "Falha ao finalizar a gravação.");
-    const stamp = new Date().toISOString().slice(0, 16).replace(/[-:]/g, "").replace("T", "-");
-    const downloadId = await chrome.downloads.download({
-      url: r.url, filename: `scroll-${stamp}.${r.ext}`, saveAs: false,
-    });
-    await setRec({ phase: "saving", downloadId, name: r.name, ext: r.ext });
+    const file = { url: r.url, name: r.name, ext: r.ext };
+    // A gravação já existe: qualquer falha daqui em diante não pode descartá-la.
+    await deliver(file).catch((e) => setRec({ phase: "unsaved", ...file, error: e.message }));
   } catch (e) {
     await abort(e.message);
   } finally {
     finishing = false;
+  }
+}
+
+const pad = (n) => String(n).padStart(2, "0");
+function stamp() {
+  const d = new Date();
+  return `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
+}
+async function getSettings() {
+  const { recSettings = {} } = await chrome.storage.local.get("recSettings");
+  return recSettings; // { durationSec, askEveryTime, folderName }
+}
+
+// Entrega o vídeo pronto. Depois que a gravação existe, NADA aqui pode descartá-la:
+// qualquer falha vira "unsaved", e o usuário decide entre salvar de novo e descartar.
+async function deliver(file) {
+  const { askEveryTime = false, folderName = null } = await getSettings();
+  const filename = `scroll-${stamp()}.${file.ext}`;
+  let note;
+
+  if (!askEveryTime && folderName) {
+    const r = await toOffscreen({ type: "save-to-folder", name: file.name, filename }).catch((e) => ({ ok: false, error: e.message }));
+    if (r?.ok) {
+      await toOffscreen({ type: "discard", name: file.name }).catch(() => {});
+      return reset({ saved: `${folderName}/${r.filename}` });
+    }
+    note = `${r?.error ?? "Falha ao salvar na pasta."} Salvei em Downloads.`;
+  }
+
+  try {
+    const downloadId = await chrome.downloads.download({ url: file.url, filename, saveAs: askEveryTime });
+    await setRec({ phase: "saving", downloadId, ...file, note });
+  } catch (e) {
+    const canceled = /cancel/i.test(e.message);
+    await setRec({ phase: "unsaved", ...file, error: canceled ? "Você cancelou o salvamento. O vídeo ainda está guardado." : e.message });
   }
 }
 
@@ -117,8 +152,13 @@ chrome.downloads.onChanged.addListener(async (delta) => {
     const [item] = await chrome.downloads.search({ id: delta.id });
     saved = item?.filename?.split(/[\\/]/).pop();
   }
+  if (state === "interrupted") {
+    // Não descarta: o arquivo temporário continua e dá para tentar de novo.
+    await setRec({ phase: "unsaved", url: rec.url, name: rec.name, ext: rec.ext, error: "O download foi interrompido. O vídeo ainda está guardado." });
+    return;
+  }
   await toOffscreen({ type: "discard", name: rec.name }).catch(() => {});
-  await reset(state === "complete" ? { saved } : { error: "O download foi interrompido." });
+  await reset({ saved, note: rec.note });
 });
 
 /* ---------- Mensagens ---------- */
@@ -149,6 +189,23 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         finish(0);
       });
       break;
+    case "save-retry":
+      getRec().then(async (rec) => {
+        if (rec.phase !== "unsaved") return sendResponse({ ok: false });
+        await setRec({ phase: "saving", url: rec.url, name: rec.name, ext: rec.ext });
+        await deliver({ url: rec.url, name: rec.name, ext: rec.ext });
+        sendResponse({ ok: true });
+      });
+      return true;
+    case "save-discard":
+      getRec().then(async (rec) => {
+        if (rec.phase === "unsaved") {
+          await toOffscreen({ type: "discard", name: rec.name }).catch(() => {});
+          await reset();
+        }
+        sendResponse({ ok: true });
+      });
+      return true;
     case "clear-notice": getRec().then((rec) => rec.phase === "idle" && setRec({ phase: "idle" })); break;
   }
 });

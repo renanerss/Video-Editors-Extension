@@ -27,5 +27,9 @@
   "minimum_chrome_version": "116",
   "background": {
     "service_worker": "background/sw.js"
+  },
+  "options_ui": {
+    "page": "options/options.html",
+    "open_in_tab": true
   }
 }
