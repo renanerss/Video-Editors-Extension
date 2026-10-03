@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <title>Scroll Recorder — Pasta de destino</title>
+  <link rel="stylesheet" href="../popup/popup.css">
+  <style>
+    body { width: auto; max-width: 520px; margin: 40px auto; padding: 24px; }
+    h1 { font-size: 18px; }
+    .row { display: flex; gap: 8px; flex-wrap: wrap; }
+    #current { font-weight: 600; word-break: break-all; }
+    p { margin: 0; color: var(--muted); }
+  </style>
+</head>
+<body>
+  <h1>Pasta de destino dos vídeos</h1>
+  <p>Escolha qualquer pasta do computador. Se nenhuma for escolhida, os vídeos vão para a pasta Downloads do Chrome.</p>
+  <section>
+    <span>Pasta atual</span>
+    <span id="current"></span>
+    <span id="perm"></span>
+  </section>
+  <div class="row">
+    <button id="choose" class="primary" type="button">📁 Escolher pasta…</button>
+    <button id="authorize" type="button">🔓 Autorizar de novo</button>
+    <button id="clear" type="button">✕ Remover (usar Downloads)</button>
+  </div>
+  <p id="msg" role="status"></p>
+  <script src="../lib/folder-store.js"></script>
+  <script src="options.js"></script>
+</body>
+</html>

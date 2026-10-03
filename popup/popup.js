@@ -3,6 +3,8 @@ const els = {
   theme: $("theme"), play: $("play"), speed: $("speed"), speedOut: $("speedOut"),
   direction: $("direction"), status: $("status"),
   record: $("record"), recHint: $("recHint"),
+  duration: $("duration"), folderLabel: $("folderLabel"), folderBtn: $("folderBtn"), ask: $("ask"),
+  unsaved: $("unsaved"), retry: $("retry"), discard: $("discard"),
 };
 const settings = { speed: 120, direction: 1 };
 let running = false;
@@ -102,13 +104,69 @@ const PHASE_TEXT = {
 
 function setRec(next) {
   rec = next ?? { phase: "idle" };
-  if (rec.error || rec.saved) notice = { error: rec.error, saved: rec.saved };
+  if (rec.phase === "idle" && (rec.error || rec.saved)) notice = { error: rec.error, saved: rec.saved, note: rec.note };
   else if (rec.phase !== "idle") notice = null;
   renderRecording();
 }
 
+/* ---------- Opções de gravação (salvas em chrome.storage.local) ---------- */
+let recSettings = { durationSec: null, askEveryTime: false, folderName: null };
+
+function renderOptions() {
+  els.duration.value = recSettings.durationSec ?? "";
+  els.ask.checked = recSettings.askEveryTime;
+  els.folderLabel.textContent = recSettings.askEveryTime
+    ? "Pergunta toda vez"
+    : recSettings.folderName ?? "Downloads (padrão)";
+  els.folderBtn.title = recSettings.askEveryTime
+    ? "A pasta escolhida é ignorada enquanto 'Perguntar sempre' estiver ligado"
+    : "Escolher a pasta de destino";
+}
+const saveOptions = () => chrome.storage.local.set({ recSettings });
+
+els.duration.addEventListener("change", () => {
+  const n = Number(els.duration.value);
+  recSettings.durationSec = els.duration.value === "" || !Number.isFinite(n) ? null : Math.round(n);
+  saveOptions();
+});
+els.ask.addEventListener("change", () => {
+  recSettings.askEveryTime = els.ask.checked;
+  saveOptions();
+  renderOptions();
+});
+// A escolha da pasta fica numa aba de opções: o popup fecha quando um diálogo nativo abre.
+els.folderBtn.addEventListener("click", () => chrome.runtime.openOptionsPage());
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === "local" && changes.recSettings) {
+    recSettings = { ...recSettings, ...changes.recSettings.newValue };
+    renderOptions();
+  }
+});
+
+function showError(message) {
+  notice = { error: message };
+  renderRecording();
+}
+
+// Se a pasta escolhida pede autorização, tenta aqui (dentro do clique) ou manda para as opções.
+async function folderReady() {
+  if (recSettings.askEveryTime || !recSettings.folderName) return true;
+  const dir = await FolderStore.load();
+  if (!dir) return true; // sem handle: o service worker cai em Downloads e avisa
+  const opts = { mode: "readwrite" };
+  if ((await dir.queryPermission(opts)) === "granted") return true;
+  try { if ((await dir.requestPermission(opts)) === "granted") return true; } catch {}
+  chrome.runtime.openOptionsPage();
+  showError("A pasta precisa ser autorizada de novo. Autorize na aba que abriu e grave outra vez.");
+  return false;
+}
+
 function renderRecording() {
   const busy = rec.phase !== "idle";
+  const unsaved = rec.phase === "unsaved";
+  els.unsaved.hidden = !unsaved;
+  document.querySelector(".opts").hidden = busy; // desabilitadas de qualquer jeito; liberam espaço (popup do Chrome tem teto de 600 px)
+  els.duration.disabled = els.ask.disabled = els.folderBtn.disabled = busy;
   const recording = rec.phase === "recording";
   els.record.textContent = recording ? "⏹ Parar e salvar" : "⏺ Gravar e rolar";
   els.record.classList.toggle("stop", recording);
@@ -116,8 +174,13 @@ function renderRecording() {
   els.play.disabled = busy;
   els.recHint.hidden = busy;
   els.status.classList.toggle("error", !busy && Boolean(notice?.error));
-  if (!busy && notice?.error) els.status.textContent = notice.error;
-  else if (!busy && notice?.saved) els.status.textContent = `✓ Salvo em Downloads: ${notice.saved}`;
+  if (unsaved) {
+    els.status.classList.add("error");
+    els.status.textContent = rec.error ?? "O vídeo ainda não foi salvo.";
+  } else if (!busy && notice?.error) els.status.textContent = notice.error;
+  else if (!busy && notice?.saved) {
+    els.status.textContent = `✓ Salvo: ${notice.saved}` + (notice.note ? ` (${notice.note})` : "");
+  }
   else if (busy) {
     const webm = rec.ext === "webm" ? " (Seu Chrome não suporta MP4 H.264: salvando em WebM.)" : "";
     els.status.textContent = (PHASE_TEXT[rec.phase] ?? "") + (recording ? webm : "");
@@ -129,13 +192,23 @@ els.record.addEventListener("click", async () => {
     await chrome.runtime.sendMessage({ target: "background", type: "record-stop" });
     return;
   }
+  const durationSec = recSettings.durationSec ?? 0;
+  if (durationSec !== 0 && durationSec < 3) return showError("A duração mínima é de 3 segundos.");
+  if (!(await folderReady())) return;
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   if (!tab?.id) return;
   await chrome.runtime.sendMessage({
     target: "background", type: "record-start",
-    tabId: tab.id, speed: settings.speed, direction: settings.direction,
+    tabId: tab.id, speed: settings.speed, direction: settings.direction, durationSec,
   });
   window.close(); // o seletor de tela do Chrome abre por cima; o popup não é mais necessário
+});
+
+els.retry.addEventListener("click", () => chrome.runtime.sendMessage({ target: "background", type: "save-retry" }));
+els.discard.addEventListener("click", () => {
+  if (confirm("Descartar o vídeo gravado? Isso não pode ser desfeito.")) {
+    chrome.runtime.sendMessage({ target: "background", type: "save-discard" });
+  }
 });
 
 chrome.storage.onChanged.addListener((changes, area) => {
@@ -155,6 +228,8 @@ chrome.storage.onChanged.addListener((changes, area) => {
     running = res.running;
   } catch { /* script ainda não injetado: usa os padrões */ }
   render();
+  recSettings = { ...recSettings, ...(await chrome.storage.local.get("recSettings")).recSettings };
+  renderOptions();
   setRec((await chrome.storage.session.get("rec")).rec);
   if (rec.error || rec.saved) chrome.runtime.sendMessage({ target: "background", type: "clear-notice" }); // mostra uma vez só
 })();

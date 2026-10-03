@@ -9,7 +9,7 @@ import crypto from "node:crypto";
 
 const src = path.resolve(import.meta.dirname, "..");
 const ext = fs.mkdtempSync(path.join(os.tmpdir(), "ext-rec-"));
-for (const d of ["popup", "content", "icons", "background", "offscreen"]) fs.cpSync(path.join(src, d), path.join(ext, d), { recursive: true });
+for (const d of ["popup", "content", "icons", "background", "offscreen", "lib", "options"]) fs.cpSync(path.join(src, d), path.join(ext, d), { recursive: true });
 const manifest = JSON.parse(fs.readFileSync(path.join(src, "manifest.json")));
 manifest.host_permissions = ["<all_urls>"]; // activeTab só vale com clique real no ícone
 fs.writeFileSync(path.join(ext, "manifest.json"), JSON.stringify(manifest));
