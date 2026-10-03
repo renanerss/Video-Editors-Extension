@@ -7,7 +7,7 @@ Extensão Chromium (Manifest V3) que rola a página automaticamente em velocidad
 2. Clique em **Carregar sem compactação** e escolha esta pasta.
 
 ## Status
-- [x] Fase 1: auto-scroll (play/pause, velocidade, direção, repetir) e tema claro/escuro
+- [x] Fase 1: auto-scroll (play/pause, velocidade ao vivo, atalhos que já iniciam, direção) e tema claro/escuro
 - [ ] Fase 2: gravação de tela + download
 - [ ] Fase 3: MP4 H.264, bitrate, fps, resolução
 - [ ] Fase 4: polimento

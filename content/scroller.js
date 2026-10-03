@@ -6,7 +6,6 @@
     running: false,
     speed: 120,        // px por segundo
     direction: 1,      // 1 = descer, -1 = subir
-    loop: false,       // ao chegar no fim, volta ao outro extremo
     target: null,
     pos: 0,            // posição em ponto flutuante (o navegador arredonda scrollTop)
     lastSet: 0,
@@ -51,15 +50,11 @@
     state.pos += state.direction * state.speed * dt;
 
     const atEnd = state.direction === 1 ? state.pos >= max : state.pos <= 0;
-    if (atEnd) {
-      if (state.loop) {
-        state.pos = state.direction === 1 ? 0 : max;
-      } else {
-        state.pos = Math.min(Math.max(state.pos, 0), max);
-        el.scrollTop = state.pos;
-        stop();
-        return;
-      }
+    if (atEnd) { // chegou ao fim: trava na borda e para
+      state.pos = Math.min(Math.max(state.pos, 0), max);
+      el.scrollTop = state.pos;
+      stop();
+      return;
     }
 
     el.scrollTop = state.pos;
@@ -85,7 +80,7 @@
   }
 
   function snapshot() {
-    return { running: state.running, speed: state.speed, direction: state.direction, loop: state.loop };
+    return { running: state.running, speed: state.speed, direction: state.direction };
   }
 
   chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
@@ -94,7 +89,6 @@
       case "configure":
         if (typeof msg.speed === "number") state.speed = msg.speed;
         if (msg.direction === 1 || msg.direction === -1) state.direction = msg.direction;
-        if (typeof msg.loop === "boolean") state.loop = msg.loop;
         break;
       case "start": start(); break;
       case "stop": if (state.running) stop(); break;

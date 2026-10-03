@@ -28,6 +28,4 @@ section > label { display: flex; justify-content: space-between; color: var(--mu
 input[type="range"] { width: 100%; accent-color: var(--accent); }
 .presets { display: flex; gap: 6px; }
 .presets button { flex: 1; padding: 5px; font-size: 12px; }
-.row { flex-direction: row; justify-content: space-between; align-items: center; }
-.check { display: flex; gap: 6px; align-items: center; cursor: pointer; }
 #status { margin: 0; min-height: 1.4em; color: var(--muted); font-size: 12px; }

@@ -1,11 +1,12 @@
 const $ = (id) => document.getElementById(id);
 const els = {
   theme: $("theme"), play: $("play"), speed: $("speed"), speedOut: $("speedOut"),
-  direction: $("direction"), loop: $("loop"), status: $("status"),
+  direction: $("direction"), status: $("status"),
 };
-const settings = { speed: 120, direction: 1, loop: false };
+const settings = { speed: 120, direction: 1 };
 let running = false;
 let tabId = null;
+let injected = false; // evita reinjetar o script a cada movimento do slider
 
 /* ---------- Tema ---------- */
 function applyTheme(theme) {
@@ -29,7 +30,9 @@ async function ensureScroller() {
     tabId = tab?.id ?? null;
   }
   if (tabId === null) throw new Error("Nenhuma aba ativa.");
+  if (injected) return;
   await chrome.scripting.executeScript({ target: { tabId }, files: ["content/scroller.js"] });
+  injected = true;
 }
 const send = (msg) => chrome.tabs.sendMessage(tabId, { target: "scroller", ...msg });
 
@@ -38,47 +41,49 @@ function render() {
   els.speed.value = settings.speed;
   els.speedOut.textContent = settings.speed;
   els.direction.textContent = settings.direction === 1 ? "⬇ Descer" : "⬆ Subir";
-  els.loop.checked = settings.loop;
 }
 
-async function push(extra = {}) {
+// Garante o script na página e envia as configurações atuais. Retorna o estado, ou undefined se a página não permite.
+async function applySettings() {
   try {
     await ensureScroller();
-    return await send({ type: "configure", ...settings, ...extra });
+    els.status.textContent = "";
+    return await send({ type: "configure", ...settings });
   } catch {
     els.status.textContent = "Não é possível controlar esta página (ex.: chrome:// ou Chrome Web Store).";
   }
 }
 
-/* ---------- Eventos ---------- */
-els.play.addEventListener("click", async () => {
-  els.status.textContent = "";
-  const ok = await push();
-  if (!ok) return;
-  const res = await send({ type: running ? "stop" : "start" });
-  running = res.running;
+async function setRunning(want) {
+  const res = await applySettings();
+  if (!res) return;
+  if (res.running !== want) running = (await send({ type: want ? "start" : "stop" })).running;
+  else running = res.running;
   render();
-});
+}
+
+/* ---------- Eventos ---------- */
+els.play.addEventListener("click", () => setRunning(!running));
+
+// Slider: a velocidade muda na hora, a cada movimento (evento "input"), sem esperar soltar.
 els.speed.addEventListener("input", () => {
   settings.speed = Number(els.speed.value);
   render();
-  if (tabId !== null) send({ type: "configure", speed: settings.speed }).catch(() => {});
+  if (running) applySettings();
 });
+
+// Atalhos de velocidade: ajustam e já começam a rolar.
 document.querySelectorAll(".presets button").forEach((b) =>
   b.addEventListener("click", () => {
     settings.speed = Number(b.dataset.speed);
     render();
-    if (tabId !== null) send({ type: "configure", speed: settings.speed }).catch(() => {});
+    setRunning(true);
   })
 );
 els.direction.addEventListener("click", () => {
   settings.direction *= -1;
   render();
-  if (tabId !== null) send({ type: "configure", direction: settings.direction }).catch(() => {});
-});
-els.loop.addEventListener("change", () => {
-  settings.loop = els.loop.checked;
-  if (tabId !== null) send({ type: "configure", loop: settings.loop }).catch(() => {});
+  if (running) applySettings();
 });
 chrome.runtime.onMessage.addListener((msg) => {
   if (msg?.type === "scroll-stopped") { running = false; render(); }
@@ -91,7 +96,8 @@ chrome.runtime.onMessage.addListener((msg) => {
   tabId = tab?.id ?? null;
   try {
     const res = await send({ type: "configure" }); // só funciona se o script já estiver injetado
-    Object.assign(settings, { speed: res.speed, direction: res.direction, loop: res.loop });
+    Object.assign(settings, { speed: res.speed, direction: res.direction });
+    injected = true;
     running = res.running;
   } catch { /* script ainda não injetado: usa os padrões */ }
   render();

@@ -43,34 +43,50 @@ check("botão de tema alterna", theme0 !== theme1, `${theme0} -> ${theme1}`);
 await popup.reload();
 check("tema persiste após reabrir", (await popup.evaluate(() => document.documentElement.dataset.theme)) === theme1);
 
-// Scroll (a popup está em aba própria; apontamos o tabId manualmente via evaluate)
-const tabId = await popup.evaluate(async (u) => (await chrome.tabs.query({ url: u + "*" }))[0].id, url);
-const send = (m) => popup.evaluate(([id, m]) => chrome.tabs.sendMessage(id, { target: "scroller", ...m }), [tabId, m]);
-await popup.evaluate((id) => chrome.scripting.executeScript({ target: { tabId: id }, files: ["content/scroller.js"] }), tabId);
-await send({ type: "configure", speed: 200, direction: 1, loop: false });
-await send({ type: "start" });
-const y0 = await target.evaluate(() => scrollY);
-await target.waitForTimeout(2000);
-const y1 = await target.evaluate(() => scrollY);
-const rate = (y1 - y0) / 2;
-check("rola ~200 px/s", rate > 150 && rate < 250, `(${rate.toFixed(0)} px/s)`);
+// Scroll pela interface real: com a página alvo ativa, recarregamos o popup (ele controla a aba ativa).
+await target.bringToFront();
+await popup.reload();
+const rate = async (ms = 1500) => {
+  const a = await target.evaluate(() => scrollY);
+  await target.waitForTimeout(ms);
+  return ((await target.evaluate(() => scrollY)) - a) / (ms / 1000);
+};
+const near = (v, t) => Math.abs(v - t) <= t * 0.2;
 
-await send({ type: "configure", speed: 20 });
-const y2 = await target.evaluate(() => scrollY);
-await target.waitForTimeout(2000);
-const rateSlow = ((await target.evaluate(() => scrollY)) - y2) / 2;
-check("velocidade lenta (20 px/s) não engasga", rateSlow > 12 && rateSlow < 28, `(${rateSlow.toFixed(1)} px/s)`);
+await popup.click('.presets button[data-speed="150"]');
+check("atalho 'Médio' já começa a rolar (~150 px/s)", near(await rate(), 150));
+check("botão vira 'Pausar'", (await popup.textContent("#play")).includes("Pausar"));
 
-await send({ type: "stop" });
-const y3 = await target.evaluate(() => scrollY);
+// Slider: cada movimento atualiza a velocidade na hora.
+const setSlider = (v) => popup.$eval("#speed", (el, v) => { el.value = v; el.dispatchEvent(new Event("input", { bubbles: true })); }, v);
+await setSlider(400);
+await popup.waitForTimeout(100);
+check("slider -> 400 px/s ao vivo", near(await rate(), 400));
+await setSlider(50);
+await popup.waitForTimeout(100);
+check("slider -> 50 px/s ao vivo", near(await rate(), 50));
+
+await popup.click("#play");
+const y = await target.evaluate(() => scrollY);
+await target.waitForTimeout(400);
+check("pausar para a página", (await target.evaluate(() => scrollY)) === y);
+check("slider parado não inicia o scroll", (await setSlider(300), await target.waitForTimeout(400), (await target.evaluate(() => scrollY)) === y));
+
+await popup.click("#direction");
+await popup.click("#play");
 await target.waitForTimeout(500);
-check("pausa realmente para", (await target.evaluate(() => scrollY)) === y3);
+check("direção 'subir' funciona", (await target.evaluate(() => scrollY)) < y);
+await popup.click("#play");
 
-await send({ type: "configure", direction: -1, speed: 300 });
-await send({ type: "start" });
-await target.waitForTimeout(500);
-check("direção 'subir' funciona", (await target.evaluate(() => scrollY)) < y3);
-await send({ type: "stop" });
+// Fim da página: para sozinho e o botão volta a "Iniciar".
+await popup.click("#direction"); // descer
+await target.evaluate(() => scrollTo(0, document.scrollingElement.scrollHeight - innerHeight - 100));
+await setSlider(1000);
+await popup.click('.presets button[data-speed="400"]');
+await target.waitForTimeout(800);
+check("para sozinho no fim da página", (await target.evaluate(() => scrollY + innerHeight >= document.scrollingElement.scrollHeight - 1)));
+check("botão volta a 'Iniciar' no fim", (await popup.textContent("#play")).includes("Iniciar"));
+check("não existe mais 'Repetir'", (await popup.$("#loop")) === null);
 
 await ctx.close(); server.close();
 process.exit(failures ? 1 : 0);
