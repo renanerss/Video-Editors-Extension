@@ -21,10 +21,45 @@ const BADGES = {
 const getRec = async () => (await chrome.storage.session.get("rec")).rec ?? { phase: "idle" };
 async function setRec(rec) {
   await chrome.storage.session.set({ rec });
+  updateMenu(rec.phase);
   const [text, color] = rec.error ? ["!", "#dc2626"] : BADGES[rec.phase];
   await chrome.action.setBadgeText({ text });
   await chrome.action.setBadgeBackgroundColor({ color });
 }
+
+/* ---------- Menu do botão direito no ícone (fixado ou não) ---------- */
+const MENU_ID = "toggle-recording";
+const MENU_BY_PHASE = {
+  idle: ["Gravar e rolar (padrão)", true],
+  recording: ["Parar gravação", true],
+  picking: ["Escolhendo o que gravar…", false],
+  countdown: ["Preparando…", false],
+  saving: ["Salvando o vídeo…", false],
+  unsaved: ["Vídeo não salvo — abra a extensão", false],
+};
+function updateMenu(phase) {
+  const [title, enabled] = MENU_BY_PHASE[phase] ?? MENU_BY_PHASE.idle;
+  chrome.contextMenus.update(MENU_ID, { title, enabled }).catch(() => {}); // ainda não criado: ok
+}
+chrome.runtime.onInstalled.addListener(async () => {
+  await chrome.contextMenus.removeAll();
+  chrome.contextMenus.create({ id: MENU_ID, title: MENU_BY_PHASE.idle[0], contexts: ["action"] });
+  updateMenu((await getRec()).phase);
+});
+
+// "Padrão" = o que está salvo no popup (duração, começar do topo, qualidade) + 120 px/s descendo.
+// Velocidade e direção não são salvas hoje, então valem os padrões do scroller.
+const DEFAULT_SPEED = 120;
+async function onMenuClick(info, tab) {
+  if (info.menuItemId !== MENU_ID) return;
+  const rec = await getRec();
+  if (rec.phase === "recording") return stopRecording();
+  if (rec.phase !== "idle" || !tab?.id) return;
+  const { durationSec = 0, startAtTop = false } = await getSettings();
+  if (durationSec && durationSec < 3) return setRec({ phase: "idle", error: "A duração mínima é de 3 segundos. Ajuste no popup." });
+  await startRecording({ tabId: tab.id, speed: DEFAULT_SPEED, direction: 1, durationSec, startAtTop });
+}
+chrome.contextMenus.onClicked.addListener(onMenuClick);
 
 /* ---------- Offscreen ---------- */
 async function ensureOffscreen() {
@@ -81,6 +116,13 @@ async function onAcquired(info) {
   // Com duração, o vídeo todo dura ~N s: o scroll cobre N menos as margens (antes e depois).
   const durationMs = rec.durationSec ? Math.max(rec.durationSec * 1000 - PRE_ROLL_MS - POST_ROLL_MS, 300) : undefined;
   tabSend(rec.tabId, { type: "start", durationMs }).catch((e) => abort(e.message));
+}
+
+async function stopRecording() {
+  const rec = await getRec();
+  if (rec.phase !== "recording") return;
+  await tabSend(rec.tabId, { type: "stop" }).catch(() => {});
+  await finish(300);
 }
 
 async function finish(delayMs) {
@@ -171,13 +213,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   switch (msg.type) {
     case "record-start": startRecording(msg).then(sendResponse); return true;
     case "record-stop":
-      getRec().then(async (rec) => {
-        if (rec.phase === "recording") {
-          await tabSend(rec.tabId, { type: "stop" }).catch(() => {});
-          await finish(300);
-        }
-        sendResponse({ ok: true });
-      });
+      stopRecording().then(() => sendResponse({ ok: true }));
       return true;
     case "acquired": onAcquired(msg); break;
     case "acquire-failed":
