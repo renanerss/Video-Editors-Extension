@@ -7,7 +7,7 @@ import fs from "node:fs";
 import crypto from "node:crypto";
 import { execFileSync } from "node:child_process";
 
-export async function launch() {
+export async function launch({ source = [1280, 720] } = {}) {
   const src = path.resolve(import.meta.dirname, "..");
   const ext = fs.mkdtempSync(path.join(os.tmpdir(), "ext-"));
   for (const d of ["popup", "content", "icons", "background", "offscreen", "lib", "options", "ui", "fonts"]) {
@@ -21,9 +21,9 @@ export async function launch() {
   const off = path.join(ext, "offscreen/offscreen.js");
   const code = fs.readFileSync(off, "utf8");
   const patched = code.replace(/const captureDisplay = .*;/, `const captureDisplay = async () => {
-    const c = document.createElement("canvas"); c.width = 1280; c.height = 720;
+    const c = document.createElement("canvas"); c.width = ${source[0]}; c.height = ${source[1]};
     const g = c.getContext("2d"); let i = 0;
-    setInterval(() => { g.fillStyle = "hsl(" + ((i++ * 4) % 360) + " 80% 50%)"; g.fillRect(0, 0, 1280, 720); }, 33);
+    setInterval(() => { g.fillStyle = "hsl(" + ((i++ * 4) % 360) + " 80% 50%)"; g.fillRect(0, 0, ${source[0]}, ${source[1]}); }, 33);
     return c.captureStream(30);
   };`);
   if (patched === code) throw new Error("não achei captureDisplay para trocar");

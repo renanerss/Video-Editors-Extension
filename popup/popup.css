@@ -1,5 +1,5 @@
 /* Layout específico do popup. Tokens e componentes: ../ui/theme.css */
-body { width: 320px; padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+body { width: 320px; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
 
 header { display: flex; justify-content: space-between; align-items: center; }
 .brand { display: flex; align-items: center; gap: 10px; }
@@ -43,7 +43,7 @@ input[type="range"]:hover::-webkit-slider-thumb { transform: scale(1.12); }
 .seg-opt:has(input:focus-visible) { outline: 2px solid var(--accent-ink); outline-offset: -2px; }
 
 /* Opções de gravação */
-.opts { display: flex; flex-direction: column; gap: 10px; padding-top: 14px; border-top: 1px solid var(--border); }
+.opts { display: flex; flex-direction: column; gap: 10px; padding-top: 12px; border-top: 1px solid var(--border); }
 .opts > summary { display: flex; align-items: center; gap: 6px; cursor: pointer; list-style: none; margin-bottom: -2px; }
 .opts > summary::-webkit-details-marker { display: none; }
 .opts > summary:hover { color: var(--fg); }
@@ -70,3 +70,17 @@ input[type="range"]:hover::-webkit-slider-thumb { transform: scale(1.12); }
 .check { display: flex; align-items: center; gap: 10px; min-height: 26px; cursor: pointer; }
 .check input { width: 16px; height: 16px; margin: 0; accent-color: var(--accent-ink); cursor: pointer; }
 .opts input:disabled, .opts button:disabled { cursor: not-allowed; }
+
+/* Qualidade do vídeo: 2x2, cada célula com rótulo acima do select */
+.quality { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 8px; }
+.q-cell { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+select {
+  width: 100%; height: 36px; padding: 0 8px; font: 500 12px "JetBrains Mono", ui-monospace, monospace;
+  color: var(--fg); background: var(--panel); border: 1px solid var(--control-border); border-radius: 0;
+  cursor: pointer; transition: border-color .2s;
+}
+select:hover:not(:disabled) { border-color: var(--fg); }
+select:disabled { cursor: not-allowed; opacity: .45; }
+.q-hint { margin: 0; min-height: 15px; font-size: 11px; line-height: 1.4; color: var(--sub); }
+.q-summary { margin-left: auto; font-size: 11px; letter-spacing: 0; text-transform: none; color: var(--accent-ink); white-space: nowrap; }
+.opts[open] .q-summary { display: none; } /* aberto, os selects já mostram os valores */
