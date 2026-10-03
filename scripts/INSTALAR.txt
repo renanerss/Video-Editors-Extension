@@ -1,0 +1,34 @@
+SCROLL RECORDER PARA EDITORES — como instalar
+==============================================
+
+Funciona no Google Chrome, Microsoft Edge, Brave e outros navegadores Chromium
+(versão 116 ou mais nova).
+
+1. EXTRAIA este .zip em uma pasta que você vá manter (ex.: Documentos).
+   Importante: o navegador carrega a PASTA, não o .zip. Se apagar a pasta,
+   a extensão some.
+
+2. Abra  chrome://extensions  (no Edge: edge://extensions).
+
+3. Ative o "Modo do desenvolvedor" (canto superior direito).
+
+4. Clique em "Carregar sem compactação" e escolha a pasta "scroll-recorder"
+   (a que tem o arquivo manifest.json dentro).
+
+5. Clique no ícone de quebra-cabeça da barra e fixe a extensão (opcional).
+
+COMO USAR
+---------
+- Clique no ícone: Iniciar scroll, velocidade, direção e Gravar e rolar.
+- Botão direito no ícone: "Gravar e rolar (padrão)" / "Parar gravação".
+- Atalho: Alt+Shift+R inicia e para a gravação
+  (mude em chrome://extensions/shortcuts).
+- Em "Vídeo": resolução, quadros por segundo, qualidade e formato (MP4 H.264 ou WebM).
+- Pasta de destino: botão "Pasta" no popup (se não escolher, vai para Downloads).
+
+DICAS
+-----
+- O Chrome pede para escolher o que gravar (tela, janela ou aba). Escolha a janela
+  da página para não gravar outras coisas.
+- Se o Chrome não tiver o codec H.264, o vídeo sai em WebM e o popup avisa.
+- Páginas internas (chrome://, Chrome Web Store) não podem ser controladas.
