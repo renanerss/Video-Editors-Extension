@@ -2,57 +2,103 @@
 <html lang="pt-BR" data-theme="dark">
 <head>
   <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Scroll Recorder</title>
+  <link rel="stylesheet" href="../ui/theme.css">
   <link rel="stylesheet" href="popup.css">
 </head>
 <body>
   <header>
-    <h1>Scroll Recorder</h1>
-    <button id="theme" class="icon-btn" type="button" aria-label="Alternar tema claro/escuro" title="Alternar tema"></button>
+    <div class="brand">
+      <svg class="icon logo" aria-hidden="true"><use href="../ui/icons.svg#logo"/></svg>
+      <h1>Scroll Recorder</h1>
+    </div>
+    <button id="theme" class="icon-btn" type="button">
+      <svg class="icon" aria-hidden="true"><use id="themeIcon" href="../ui/icons.svg#sun"/></svg>
+    </button>
   </header>
 
-  <button id="play" class="primary" type="button">▶ Iniciar scroll</button>
+  <section class="group" aria-label="Controle de scroll">
+    <button id="play" class="btn btn-block" type="button">
+      <svg class="icon" aria-hidden="true"><use id="playIcon" href="../ui/icons.svg#play"/></svg>
+      <span id="playText">Iniciar scroll</span>
+    </button>
 
-  <section>
-    <label for="speed">Velocidade <output id="speedOut">120</output> px/s</label>
-    <input id="speed" type="range" min="10" max="1000" step="10" value="120">
-    <div class="presets">
-      <button type="button" data-speed="60">Lento</button>
-      <button type="button" data-speed="150">Médio</button>
-      <button type="button" data-speed="400">Rápido</button>
+    <div class="speed">
+      <div class="between">
+        <label for="speed" class="eyebrow">Velocidade</label>
+        <output id="speedOut" for="speed" class="mono value"><span id="speedVal">120</span> px/s</output>
+      </div>
+      <input id="speed" type="range" min="10" max="1000" step="10" value="120">
+    </div>
+
+    <div class="presets" role="group" aria-label="Velocidades prontas">
+      <button type="button" class="btn btn-sm" data-speed="60">Lento</button>
+      <button type="button" class="btn btn-sm" data-speed="150">Médio</button>
+      <button type="button" class="btn btn-sm" data-speed="400">Rápido</button>
+    </div>
+
+    <div class="seg" role="radiogroup" aria-label="Direção do scroll">
+      <label class="seg-opt">
+        <input type="radio" name="dir" id="dirDown" value="1" checked>
+        <svg class="icon" aria-hidden="true"><use href="../ui/icons.svg#arrow-down"/></svg><span>Descer</span>
+      </label>
+      <label class="seg-opt">
+        <input type="radio" name="dir" id="dirUp" value="-1">
+        <svg class="icon" aria-hidden="true"><use href="../ui/icons.svg#arrow-up"/></svg><span>Subir</span>
+      </label>
     </div>
   </section>
 
-  <section>
-    <button id="direction" type="button">⬇ Descer</button>
-  </section>
+  <details class="opts" id="opts" open>
+    <summary class="eyebrow">
+      <svg class="icon chevron" aria-hidden="true"><use href="../ui/icons.svg#chevron"/></svg>
+      Opções de gravação
+    </summary>
 
-  <details class="opts" open>
-    <summary>Opções de gravação</summary>
-    <label class="field" title="Vazio = até o fim da página. Com valor, grava e rola por esse tempo, ou até o fim da página, o que vier primeiro.">Duração (segundos)
-      <input id="duration" type="number" min="3" step="1" inputmode="numeric" placeholder="vazio = até o fim da página">
-    </label>
-    <div class="field">Salvar em
-      <div class="folder">
-        <span id="folderLabel"></span>
-        <button id="folderBtn" type="button" title="Escolher a pasta de destino">📁 Pasta…</button>
+    <div class="field">
+      <label for="duration" title="Vazio = até o fim da página. Com valor, grava e rola por esse tempo, ou até o fim da página, o que vier primeiro.">Duração</label>
+      <div class="input-wrap">
+        <input id="duration" type="number" min="3" step="1" inputmode="numeric" placeholder="até o fim" aria-describedby="durHint">
+        <span class="unit mono" aria-hidden="true">s</span>
       </div>
     </div>
+    <p id="durHint" class="field-hint" hidden>Mínimo de 3 segundos.</p>
+
+    <div class="field">
+      <span id="folderTitle">Salvar em</span>
+      <div class="folder">
+        <span id="folderLabel" class="mono" aria-labelledby="folderTitle"></span>
+        <button id="folderBtn" class="btn btn-sm" type="button">
+          <svg class="icon" aria-hidden="true"><use href="../ui/icons.svg#folder"/></svg>Pasta
+        </button>
+      </div>
+    </div>
+
     <label class="check"><input id="top" type="checkbox"> Começar do início da página</label>
     <label class="check"><input id="ask" type="checkbox"> Perguntar sempre onde salvar</label>
   </details>
 
-  <section class="record">
-    <button id="record" class="rec" type="button">⏺ Gravar e rolar</button>
-    <small id="recHint">Contagem de 3s, rola e salva o vídeo.</small>
+  <section class="group" aria-label="Gravação">
+    <button id="record" class="btn btn-primary btn-block" type="button">
+      <svg class="icon" aria-hidden="true"><use id="recIcon" href="../ui/icons.svg#rec"/></svg>
+      <span id="recText">Gravar e rolar</span>
+    </button>
+    <div id="unsaved" class="row" hidden>
+      <button id="retry" class="btn btn-sm" type="button">
+        <svg class="icon" aria-hidden="true"><use href="../ui/icons.svg#download"/></svg>Salvar de novo
+      </button>
+      <button id="discard" class="btn btn-sm btn-danger" type="button">
+        <svg class="icon" aria-hidden="true"><use href="../ui/icons.svg#trash"/></svg><span id="discardText">Descartar</span>
+      </button>
+    </div>
   </section>
 
-  <section id="unsaved" class="row" hidden>
-    <button id="retry" class="primary" type="button">💾 Salvar de novo</button>
-    <button id="discard" type="button">🗑 Descartar</button>
-  </section>
+  <p id="status" class="status" role="status" data-state="idle">
+    <svg class="icon" aria-hidden="true"><use id="statusIcon" href="../ui/icons.svg#dot"/></svg>
+    <span id="statusText"></span>
+  </p>
 
-  <p id="status" role="status"></p>
   <script src="../lib/folder-store.js"></script>
   <script src="popup.js"></script>
 </body>

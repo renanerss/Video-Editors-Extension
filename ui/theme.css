@@ -1,0 +1,77 @@
+/* Tokens e componentes compartilhados (popup + página de opções), baseados no design system Aetheris.
+   O Aetheris é escuro; o tema claro é uma derivação com contraste medido (texto >= 4.5:1, controles >= 3:1). */
+
+@font-face { font-family: "Inter"; font-weight: 300 700; font-display: swap; src: url("../fonts/Inter-var.woff2") format("woff2"); }
+@font-face { font-family: "JetBrains Mono"; font-weight: 100 800; font-display: swap; src: url("../fonts/JetBrainsMono-var.woff2") format("woff2"); }
+
+:root, :root[data-theme="dark"] {
+  --void: #030303; --panel: #0b0b0b; --surface: #141414;
+  --fg: #e8e8e8; --sub: #8f8f8f;
+  --border: rgba(255, 255, 255, .09); --control-border: #686868; --border-strong: rgba(255, 255, 255, .2);
+  --mint: #00ffa3;           /* preenchimentos (botão primário) */
+  --accent-ink: #00ffa3;     /* acento usado como texto, ícone, foco */
+  --on-accent: #030303;
+  --danger: #ff6b6b;
+  --glow: 0 0 20px rgba(0, 255, 163, .3);
+  color-scheme: dark;
+}
+:root[data-theme="light"] {
+  --void: #f2f4f3; --panel: #ffffff; --surface: #e9ecea;
+  --fg: #0b0d0c; --sub: #4a504d;
+  --border: rgba(0, 0, 0, .12); --control-border: #808080; --border-strong: rgba(0, 0, 0, .28);
+  --mint: #00ffa3; --accent-ink: #007a4f; --on-accent: #030303;
+  --danger: #b3261e;
+  --glow: none;
+  color-scheme: light;
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--void); color: var(--fg);
+  font: 400 13px/1.45 "Inter", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+.mono { font-family: "JetBrains Mono", ui-monospace, monospace; }
+.eyebrow { font: 500 11px/1 "JetBrains Mono", ui-monospace, monospace; letter-spacing: .12em; text-transform: uppercase; color: var(--sub); }
+.icon { width: 16px; height: 16px; flex-shrink: 0; }
+
+/* ---------- Botões ---------- */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  min-height: 38px; padding: 0 14px; border-radius: 0;
+  font: 600 12px/1 "Inter", sans-serif; letter-spacing: .04em; text-transform: uppercase;
+  color: var(--fg); background: transparent; border: 1px solid var(--border-strong);
+  cursor: pointer; transition: background-color .2s, border-color .2s, box-shadow .2s, color .2s;
+}
+.btn:hover:not(:disabled) { background: color-mix(in srgb, var(--fg) 8%, transparent); border-color: var(--control-border); }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+.btn-block { width: 100%; }
+.btn-primary { background: var(--mint); color: var(--on-accent); border-color: var(--mint); box-shadow: var(--glow); min-height: 44px; }
+:root[data-theme="light"] .btn-primary { border-color: var(--accent-ink); }
+.btn-primary:hover:not(:disabled) { background: var(--fg); border-color: var(--fg); color: var(--void); box-shadow: none; }
+.btn-danger { border-color: var(--danger); color: var(--danger); }
+.btn-danger:hover:not(:disabled) { background: color-mix(in srgb, var(--danger) 12%, transparent); border-color: var(--danger); }
+.btn-sm { min-height: 32px; padding: 0 10px; font-size: 11px; }
+.icon-btn {
+  display: inline-grid; place-items: center; width: 36px; height: 36px; padding: 0; border-radius: 50%;
+  color: var(--sub); background: var(--panel); border: 1px solid var(--border-strong); cursor: pointer;
+  transition: color .2s, border-color .2s;
+}
+.icon-btn:hover { color: var(--fg); border-color: var(--control-border); }
+
+:focus-visible { outline: 2px solid var(--accent-ink); outline-offset: 2px; }
+
+/* ---------- Mensagem de status (ponto + texto) ---------- */
+.status { display: flex; gap: 8px; align-items: flex-start; min-height: 36px; margin: 0; font-size: 12px; line-height: 1.4; color: var(--sub); }
+.status .icon { margin-top: 1px; }
+.status[data-state="busy"] { color: var(--fg); }
+.status[data-state="busy"] .icon, .status[data-state="success"] { color: var(--accent-ink); }
+.status[data-state="recording"] { color: var(--fg); }
+.status[data-state="recording"] .icon, .status[data-state="error"] { color: var(--danger); }
+.status[data-state="busy"] .icon, .status[data-state="recording"] .icon { animation: pulse 1.6s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: .35; } }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+[hidden] { display: none !important; }

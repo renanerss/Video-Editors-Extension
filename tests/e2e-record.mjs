@@ -9,7 +9,7 @@ import crypto from "node:crypto";
 
 const src = path.resolve(import.meta.dirname, "..");
 const ext = fs.mkdtempSync(path.join(os.tmpdir(), "ext-rec-"));
-for (const d of ["popup", "content", "icons", "background", "offscreen", "lib", "options"]) fs.cpSync(path.join(src, d), path.join(ext, d), { recursive: true });
+for (const d of ["popup", "content", "icons", "background", "offscreen", "lib", "options", "ui", "fonts"]) fs.cpSync(path.join(src, d), path.join(ext, d), { recursive: true });
 const manifest = JSON.parse(fs.readFileSync(path.join(src, "manifest.json")));
 manifest.host_permissions = ["<all_urls>"]; // activeTab só vale com clique real no ícone
 fs.writeFileSync(path.join(ext, "manifest.json"), JSON.stringify(manifest));
@@ -72,7 +72,7 @@ if (CANCEL) {
   await popup.waitForTimeout(1500);
   const r = await phase(popup);
   check("cancelar o seletor volta ao início", r.phase === "idle", JSON.stringify(r));
-  check("cancelar não mostra erro", !r.error && (await popup.textContent("#status")) === "");
+  check("cancelar não mostra erro", !r.error && (await popup.getAttribute("#status", "data-state")) === "idle");
   check("botão de gravar volta a funcionar", !(await popup.$eval("#record", (b) => b.disabled)));
   await ctx.close(); server.close();
   process.exit(failures ? 1 : 0);
