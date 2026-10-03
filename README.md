@@ -6,6 +6,12 @@ Extensão Chromium (Manifest V3) que rola a página automaticamente em velocidad
 1. Abra `chrome://extensions` e ative **Modo do desenvolvedor**.
 2. Clique em **Carregar sem compactação** e escolha esta pasta.
 
+### Usando o .zip
+1. **Extraia** o `scroll-recorder-<versão>.zip` numa pasta que você vá manter (o navegador carrega a pasta, não o zip).
+2. Faça os passos 1 e 2 acima escolhendo a pasta `scroll-recorder` extraída.
+
+Para gerar o zip: `bash scripts/build-zip.sh` (cria `dist/scroll-recorder-<versão>.zip` só com os arquivos de execução, mais um `INSTALAR.txt`).
+
 ## Status
 - [x] Fase 1: auto-scroll (play/pause, velocidade ao vivo, atalhos que já iniciam, direção) e tema claro/escuro
 - [x] Fase 2: gravação de tela (getDisplayMedia, contagem 3-2-1, grava e rola juntos, download)
