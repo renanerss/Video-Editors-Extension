@@ -126,10 +126,16 @@
   </details>
 
   <section class="group" aria-label="Gravação">
-    <button id="record" class="btn btn-primary btn-block" type="button">
-      <svg class="icon" aria-hidden="true"><use id="recIcon" href="../ui/icons.svg#rec"/></svg>
-      <span id="recText">Gravar e rolar</span>
-    </button>
+    <div class="row rec-row">
+      <button id="record" class="btn btn-primary" type="button">
+        <svg class="icon" aria-hidden="true"><use id="recIcon" href="../ui/icons.svg#rec"/></svg>
+        <span id="recText">Gravar e rolar</span>
+      </button>
+      <button id="recordPlain" class="btn" type="button" title="Grava a tela como está, sem rolar a página e sem limite de tempo. Pare pelo botão, por Alt+Shift+R ou pelo menu do ícone.">
+        <svg class="icon" aria-hidden="true"><use id="recPlainIcon" href="../ui/icons.svg#rec"/></svg>
+        <span id="recPlainText">Gravar tela</span>
+      </button>
+    </div>
     <p id="clock" class="clock" role="timer" hidden>
       <span id="clockTime" class="mono">0:00</span>
       <span id="clockSize" class="mono"></span>

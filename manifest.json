@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Scroll Recorder para Editores",
-  "version": "1.0",
-  "description": "Auto-scroll suave com velocidade ajustável e gravação de tela em alta qualidade.",
+  "version": "1.1",
+  "description": "Auto-scroll suave com velocidade ajustável e gravação de tela em alta qualidade, com ou sem scroll.",
   "permissions": [
     "activeTab",
     "scripting",
@@ -40,6 +40,13 @@
         "mac": "Alt+Shift+R"
       },
       "description": "Gravar e rolar (padrão) / Parar gravação"
+    },
+    "record-plain": {
+      "suggested_key": {
+        "default": "Alt+Shift+T",
+        "mac": "Alt+Shift+T"
+      },
+      "description": "Gravar tela (sem scroll) / Parar gravação"
     }
   }
 }

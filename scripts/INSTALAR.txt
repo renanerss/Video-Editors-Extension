@@ -21,7 +21,7 @@ COMO USAR
 ---------
 - Clique no ícone: Iniciar scroll, velocidade, direção e Gravar e rolar.
 - Botão direito no ícone: "Gravar e rolar (padrão)" / "Parar gravação".
-- Atalho: Alt+Shift+R inicia e para a gravação
+- Atalhos: Alt+Shift+R inicia "Gravar e rolar" e para qualquer gravação; Alt+Shift+T inicia "Gravar tela" (sem scroll)
   (mude em chrome://extensions/shortcuts).
 - Em "Vídeo": resolução, quadros por segundo, qualidade e formato (MP4 H.264 ou WebM).
 - Pasta de destino: botão "Pasta" no popup (se não escolher, vai para Downloads).

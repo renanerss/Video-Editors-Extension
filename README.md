@@ -1,10 +1,10 @@
 # Scroll Recorder para Editores
 
-Extensão Chromium (Manifest V3) que rola a página automaticamente em velocidade ajustável — pensada para gravar telas para edição de vídeo.
+Extensão Chromium (Manifest V3) que rola a página automaticamente em velocidade ajustável e grava a tela, com ou sem scroll — pensada para gravar telas para edição de vídeo.
 
 ## Baixar e instalar
 
-**[⬇ Baixar scroll-recorder-1.0.zip](https://github.com/renanerss/Video-Editors-Extension/raw/main/releases/scroll-recorder-1.0.zip)**
+**[⬇ Baixar scroll-recorder-1.1.zip](https://github.com/renanerss/Video-Editors-Extension/raw/main/releases/scroll-recorder-1.1.zip)**
 
 Funciona em Google Chrome, Microsoft Edge, Brave e outros navegadores Chromium 116 ou mais novos (veja a [compatibilidade](#compatibilidade-com-navegadores)).
 
@@ -17,8 +17,9 @@ O Chrome mostra um aviso de extensões em modo desenvolvedor ao abrir. É normal
 
 ### Como usar
 - **Clique no ícone:** Iniciar scroll, velocidade, direção, movimento suave e **Gravar e rolar**.
-- **Botão direito no ícone:** "Gravar e rolar (padrão)" e, gravando, "Parar gravação". Usa as opções salvas no popup.
-- **Atalho:** `Alt+Shift+R` inicia e para a gravação (mude em `chrome://extensions/shortcuts`).
+- **Botão direito no ícone:** "Gravar e rolar (padrão)", "Gravar tela (sem scroll)" e, gravando, "Parar gravação" no item do modo ativo. Usa as opções salvas no popup.
+- **Gravar tela (novo):** botão ao lado de *Gravar e rolar*. Grava o que você faz, sem rolar a página e sem limite de tempo. Tem contagem de 3 s no início; ao parar, corta na hora. Usa o mesmo vídeo e a mesma pasta de destino. O arquivo sai como `gravacao-AAAAMMDD-HHMMSS`; o modo com scroll continua `scroll-...`. Sem áudio. Como o vídeo fica na memória até parar, o popup avisa quando passa de 2 GB.
+- **Atalhos:** `Alt+Shift+R` inicia *Gravar e rolar* e **para qualquer gravação**. `Alt+Shift+T` inicia *Gravar tela*. Mude em `chrome://extensions/shortcuts`.
 - **Vídeo:** resolução, quadros por segundo, qualidade e formato (MP4 H.264 ou WebM).
 - **Pasta de destino:** botão *Pasta* no popup. Sem escolher, o vídeo vai para Downloads.
 - Ao gravar, o Chrome pergunta o que compartilhar (tela, janela ou aba). Escolha a janela da página.

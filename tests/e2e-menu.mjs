@@ -14,7 +14,7 @@ const worker = sw();
 await worker.evaluate(() => {
   globalThis.__titles = [];
   const orig = chrome.contextMenus.update.bind(chrome.contextMenus);
-  chrome.contextMenus.update = (id, props) => { globalThis.__titles.push([props.title, props.enabled]); return orig(id, props); };
+  chrome.contextMenus.update = (id, props) => { if (id === "toggle-recording") globalThis.__titles.push([props.title, props.enabled]); return orig(id, props); };
 });
 const titles = () => worker.evaluate(() => globalThis.__titles);
 const click = () => worker.evaluate((id) => onMenuClick({ menuItemId: "toggle-recording" }, { id }), tabId);

@@ -5,6 +5,7 @@ const els = {
   speed: $("speed"), speedVal: $("speedVal"), dirDown: $("dirDown"), dirUp: $("dirUp"),
   status: $("status"), statusIcon: $("statusIcon"), statusText: $("statusText"),
   record: $("record"), recIcon: $("recIcon"), recText: $("recText"),
+  recordPlain: $("recordPlain"), recPlainIcon: $("recPlainIcon"), recPlainText: $("recPlainText"),
   opts: $("opts"), qual: $("qual"), qSummary: $("qSummary"), duration: $("duration"), durHint: $("durHint"),
   qRes: $("qRes"), qFps: $("qFps"), qBit: $("qBit"), qFmt: $("qFmt"), qHint: $("qHint"),
   folderLabel: $("folderLabel"), folderBtn: $("folderBtn"), ask: $("ask"), top: $("top"), ease: $("ease"),
@@ -120,6 +121,7 @@ const PHASE_TEXT = {
   picking: "Escolha o que gravar na janela do Chrome…",
   countdown: "Prepare-se: a gravação já vai começar.",
   recording: "Gravando. O vídeo é salvo quando o scroll chegar ao fim.",
+  recordingPlain: "Gravando a tela, sem limite de tempo. Pare pelo botão, por Alt+Shift+R ou pelo menu do ícone.",
   saving: "Salvando o vídeo…",
 };
 
@@ -241,7 +243,7 @@ function statusView() {
     const wanted = Quality.normalize(recSettings.quality).format;
     const fallback = wanted === "mp4" && rec.ext === "webm" ? " Seu Chrome não suporta MP4 H.264, então salvo em WebM." : "";
     const spec = rec.width ? ` ${rec.width}×${rec.height} · ${rec.fps} fps · ${rec.ext.toUpperCase()}.` : "";
-    return { state: "recording", icon: "dot", text: PHASE_TEXT.recording + spec + fallback };
+    return { state: "recording", icon: "dot", text: (rec.mode === "plain" ? PHASE_TEXT.recordingPlain : PHASE_TEXT.recording) + spec + fallback + sizeWarning() };
   }
   if (rec.phase !== "idle") return { state: "busy", icon: "dot", text: PHASE_TEXT[rec.phase] ?? "" };
   if (notice?.error) return { state: "error", icon: "alert", text: notice.error };
@@ -264,6 +266,11 @@ function formatClock(ms) {
   const mm = String(m).padStart(2, "0"), ss = String(sec).padStart(2, "0");
   return h ? `${h}:${mm}:${ss}` : `${m}:${ss}`;
 }
+// Sem limite de tempo, o arquivo pode ficar enorme (fica na memória até parar). Avisa a partir de 2 GB.
+const BIG_BYTES = 2e9;
+function sizeWarning() {
+  return rec.mode === "plain" && recBytes >= BIG_BYTES ? " Arquivo grande: pare e salve logo para não faltar memória." : "";
+}
 function formatBytes(b) {
   return b >= 1e9 ? `${(b / 1e9).toFixed(2)} GB` : `${Math.round(b / 1e6)} MB`;
 }
@@ -279,7 +286,7 @@ function syncClock() {
   if (on) tickClock();
 }
 chrome.storage.onChanged.addListener((changes, area) => {
-  if (area === "session" && changes.recProgress) { recBytes = changes.recProgress.newValue?.bytes ?? 0; if (!els.clock.hidden) tickClock(); }
+  if (area === "session" && changes.recProgress) { recBytes = changes.recProgress.newValue?.bytes ?? 0; if (!els.clock.hidden) tickClock(); renderStatus(); }
 });
 
 function renderRecording() {
@@ -290,14 +297,33 @@ function renderRecording() {
   els.opts.hidden = els.qual.hidden = busy; // desabilitadas de qualquer jeito; liberam espaço (popup do Chrome tem teto de 600 px)
   els.duration.disabled = els.ask.disabled = els.top.disabled = els.ease.disabled = els.folderBtn.disabled = busy;
   for (const el of [els.qRes, els.qFps, els.qBit, els.qFmt]) el.disabled = busy;
-  setIcon(els.recIcon, recording ? "stop" : "rec");
-  els.recText.textContent = recording ? "Parar e salvar" : "Gravar e rolar";
-  els.record.classList.toggle("btn-primary", !recording);
-  els.record.classList.toggle("btn-danger", recording);
-  els.record.disabled = busy && !recording;
+  const plain = rec.mode === "plain";
+  const recScroll = recording && !plain, recPlain = recording && plain;
+  setIcon(els.recIcon, recScroll ? "stop" : "rec");
+  els.recText.textContent = recScroll ? "Parar e salvar" : "Gravar e rolar";
+  els.record.classList.toggle("btn-primary", !recScroll);
+  els.record.classList.toggle("btn-danger", recScroll);
+  els.record.disabled = busy && !recScroll;
+  setIcon(els.recPlainIcon, recPlain ? "stop" : "rec");
+  els.recPlainText.textContent = recPlain ? "Parar e salvar" : "Gravar tela";
+  els.recordPlain.classList.toggle("btn-danger", recPlain);
+  els.recordPlain.disabled = busy && !recPlain;
   els.play.disabled = busy;
   renderStatus();
 }
+
+// Gravar tela: sem scroll, sem duração. Usa o vídeo e a pasta configurados no popup.
+els.recordPlain.addEventListener("click", async () => {
+  if (rec.phase === "recording") {
+    await chrome.runtime.sendMessage({ target: "background", type: "record-stop" });
+    return;
+  }
+  if (!(await folderReady())) return;
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (!tab?.id) return;
+  await chrome.runtime.sendMessage({ target: "background", type: "record-start", mode: "plain", tabId: tab.id });
+  window.close();
+});
 
 els.record.addEventListener("click", async () => {
   if (rec.phase === "recording") {
